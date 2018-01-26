@@ -1,0 +1,65 @@
+plugins {
+    id 'com.github.hierynomus.license' version '0.14.0'
+    id 'java-gradle-plugin'
+    id 'maven-publish'
+    id 'com.gradle.plugin-publish' version '0.9.9'
+}
+
+apply plugin: 'groovy'
+
+group = 'net.idlestate'
+version = '1.0.0'
+
+gradlePlugin {
+    plugins {
+        duplicateClassesCheck {
+            id = 'net.idlestate.gradle-duplicate-classes-check'
+            implementationClass = 'net.idlestate.gradle.duplicates.CheckDuplicateClassesPlugin'
+        }
+    }
+}
+
+pluginBundle {
+    website = 'https://github.com/tehlers/gradle-duplicate-classes-check'
+    vcsUrl = 'https://github.com/tehlers/gradle-duplicate-classes-check.git'
+
+    plugins {
+        duplicateClassesCheck {
+            id = 'net.idlestate.gradle-duplicate-classes-check'
+            displayName = 'Duplicate classes check'
+            description = 'A Gradle plugin that checks whether different artifacts in a configuration provide the same classes'
+            tags = ['classpath', 'configuration', 'dependencies', 'duplicates']
+        }
+    }
+}
+
+task sourceJar( type: Jar ) {
+    from sourceSets.main.allGroovy
+}
+
+publishing {
+    publications {
+        gradlePlugin( MavenPublication ) {
+            artifactId archivesBaseName
+            from components.java
+
+            artifact sourceJar {
+                classifier 'sources'
+            }
+
+            pom.withXml {
+                asNode().children().last() + {
+                    resolveStrategy = Closure.DELEGATE_FIRST
+                    description 'A Gradle plugin that checks whether different artifacts in a configuration provide the same classes'
+                    licenses {
+                        license {
+                            name 'The Apache Software License, Version 2.0'
+                            url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+                            distribution 'repo'
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

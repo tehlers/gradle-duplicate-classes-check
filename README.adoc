@@ -1,0 +1,43 @@
+# Gradle - Check duplicate classes 
+
+This Gradle plugin checks whether different artifacts in a configuration provide the same classes. Since this leads to rather nasty bugs, you probably want to find these problems beforehand. A typical cause of such issues are artifacts that changed their maven group id but kept there packages like 'c3p0:c3p0' that has been renamed to 'com.mchange:c3p0'.
+
+## Usage
+
+You can either use the new plugin mechanism introduced with Gradle 2.1
+
+.build.gradle
+[source,groovy]
+--------------------------------------------------------------------
+plugins {
+  id 'net.idlestate.gradle-duplicate-classes-check' version '1.0.0'
+}
+--------------------------------------------------------------------
+
+or the 'classic' way
+
+.build.gradle
+[source,groovy]
+--------------------------------------------------------------------
+buildscript {
+  repositories {
+    maven {
+      url 'https://plugins.gradle.org/m2/'
+    }
+  }
+
+  dependencies {
+    classpath 'gradle.plugin.net.idlestate:gradle-duplicate-classes-check:1.0.0'
+  }
+}
+
+apply plugin: 'net.idlestate.gradle-duplicate-classes-check'
+--------------------------------------------------------------------
+
+to apply the plugin to your project.
+
+The check is performed by the task `checkForDuplicateClasses` that has been added as dependency to the task `check`.
+
+## License
+
+include::LICENSE[]
