@@ -14,6 +14,7 @@ repositories {
 dependencies {
     compile 'c3p0:c3p0:0.9.1.2'
     compile 'com.mchange:c3p0:0.9.5.2'
+    compile 'org.apache.xmlbeans:xmlbeans:2.6.0'
     compile 'org.slf4j:slf4j-api:1.7.25'
     compile 'com.datastax.cassandra:cassandra-driver-core:3.4.0'
 }

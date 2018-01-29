@@ -52,15 +52,16 @@ class CheckDuplicateClassesTask extends DefaultTask implements VerificationTask 
     }
 
     String checkConfiguration( final Configuration configuration ) {
-        Map<String, List> modulesByFile = [:].withDefault { key -> [] }
+        Map<String, List> modulesByFile = [:].withDefault { key -> [] as Set }
 
         configuration.resolvedConfiguration.resolvedArtifacts.each { artifact ->
             logger.info( "    '${artifact.file.name}' of '${artifact.moduleVersion}'" )
 
             new ZipFile( artifact.file ).entries().each { entry ->
                 if ( !entry.isDirectory() && !entry.name.startsWith( 'META-INF/' ) ) {
-                    final List modules = modulesByFile.get( entry.name )
-                    modules.add( artifact.moduleVersion )
+                    // logger.debug( "        ${entry.name}" )
+                    final Set modules = modulesByFile.get( entry.name )
+                    modules.add( artifact.moduleVersion.toString() )
                     modulesByFile.put( entry.name, modules )
                 }
             }
@@ -68,6 +69,7 @@ class CheckDuplicateClassesTask extends DefaultTask implements VerificationTask 
 
         Map duplicateFiles = modulesByFile.findAll { it.value.size() > 1 }
         if ( duplicateFiles ) {
+            // logger.info( duplicateFiles.toString() )
             return "\n\n${configuration.name}\n${buildMessageWithUniqueModules( duplicateFiles.values() )}"
         }
 
@@ -87,9 +89,9 @@ class CheckDuplicateClassesTask extends DefaultTask implements VerificationTask 
         return moduleMessages.join( '\n' )
     }
 
-    static String joinModules( final List modules ) {
+    static String joinModules( final Set modules ) {
         return modules.sort( { first, second ->
-            (first.toString() <=> second.toString())
+            ( first <=> second )
         } ).join( ', ' )
     }
 
