@@ -10,7 +10,7 @@ You can either use the new plugin mechanism introduced with Gradle 2.1
 [source,groovy]
 --------------------------------------------------------------------
 plugins {
-  id 'net.idlestate.gradle-duplicate-classes-check' version '1.0.1'
+  id 'net.idlestate.gradle-duplicate-classes-check' version '1.0.2'
 }
 --------------------------------------------------------------------
 
@@ -27,7 +27,7 @@ buildscript {
   }
 
   dependencies {
-    classpath 'gradle.plugin.net.idlestate:gradle-duplicate-classes-check:1.0.1'
+    classpath 'gradle.plugin.net.idlestate:gradle-duplicate-classes-check:1.0.2'
   }
 }
 

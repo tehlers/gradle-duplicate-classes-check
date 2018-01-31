@@ -18,6 +18,7 @@ package net.idlestate.gradle.duplicates
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
 import org.gradle.api.artifacts.Configuration
+import org.gradle.api.logging.LogLevel
 import org.gradle.api.tasks.TaskAction
 import org.gradle.api.tasks.VerificationTask
 
@@ -41,25 +42,30 @@ class CheckDuplicateClassesTask extends DefaultTask implements VerificationTask 
         }
 
         if ( result ) {
-            String message = "There are conflicting files in the modules of the following configurations:${result.toString()}"
+            final StringBuilder message = new StringBuilder( 'There are conflicting files in the modules of the following configurations' )
+
+            if ( project.gradle.startParameter.logLevel.compareTo( LogLevel.INFO ) > 0 ) {
+                message.append( ' (add --info for details)' )
+            }
+
+            message.append( ":${result.toString()}" )
 
             if ( _ignoreFailures ) {
-                logger.warn( message )
+                logger.warn( message.toString() )
             } else {
-                throw new GradleException( message )
+                throw new GradleException( message.toString() )
             }
         }
     }
 
     String checkConfiguration( final Configuration configuration ) {
-        Map<String, List> modulesByFile = [:].withDefault { key -> [] as Set }
+        Map<String, Set> modulesByFile = [:].withDefault { key -> [] as Set }
 
         configuration.resolvedConfiguration.resolvedArtifacts.each { artifact ->
-            logger.info( "    '${artifact.file.name}' of '${artifact.moduleVersion}'" )
+            logger.info( "    '${artifact.file.path}' of '${artifact.moduleVersion}'" )
 
             new ZipFile( artifact.file ).entries().each { entry ->
                 if ( !entry.isDirectory() && !entry.name.startsWith( 'META-INF/' ) ) {
-                    // logger.debug( "        ${entry.name}" )
                     final Set modules = modulesByFile.get( entry.name )
                     modules.add( artifact.moduleVersion.toString() )
                     modulesByFile.put( entry.name, modules )
@@ -69,11 +75,30 @@ class CheckDuplicateClassesTask extends DefaultTask implements VerificationTask 
 
         Map duplicateFiles = modulesByFile.findAll { it.value.size() > 1 }
         if ( duplicateFiles ) {
-            // logger.info( duplicateFiles.toString() )
+            logger.info( buildMessageWithConflictingClasses( duplicateFiles ) )
             return "\n\n${configuration.name}\n${buildMessageWithUniqueModules( duplicateFiles.values() )}"
         }
 
         return ''
+    }
+
+    static String buildMessageWithConflictingClasses( final Map<String, Set> duplicateFiles ) {
+        Map<String, List<String>> conflictingClasses = [:].withDefault { key -> [] }
+
+        duplicateFiles.collectEntries( conflictingClasses ) { entry ->
+            String key = entry.getValue().join( ', ' )
+            List values = conflictingClasses.get( key )
+            values.add( entry.getKey() )
+
+            [ key, values ]
+        }
+
+        final StringBuilder message = new StringBuilder()
+        conflictingClasses.each { entry ->
+            message.append( "\n    Found duplicate classes in ${entry.key}:\n        ${entry.value.join( '\n        ' )}" )
+        }
+
+        return message.toString()
     }
 
     static String buildMessageWithUniqueModules(final Collection conflictingModules ) {
