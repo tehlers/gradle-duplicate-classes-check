@@ -64,7 +64,7 @@ class CheckDuplicateClassesTask extends DefaultTask implements VerificationTask 
         configuration.resolvedConfiguration.resolvedArtifacts.each { artifact ->
             logger.info( "    '${artifact.file.path}' of '${artifact.moduleVersion}'" )
 
-            new ZipFile( artifact.file ).entries().each { entry ->
+            new ZipFile( artifact.file ).entries().findAll{ it.name.endsWith(".class") }.each { entry ->
                 if ( !entry.isDirectory() && !entry.name.startsWith( 'META-INF/' ) ) {
                     final Set modules = modulesByFile.get( entry.name )
                     modules.add( artifact.moduleVersion.toString() )
