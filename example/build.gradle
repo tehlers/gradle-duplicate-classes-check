@@ -18,3 +18,10 @@ dependencies {
     compile 'org.slf4j:slf4j-api:1.7.25'
     compile 'com.datastax.cassandra:cassandra-driver-core:3.4.0'
 }
+
+checkForDuplicateClasses {
+    exclusions = [
+            "com/mchange/Debug.class",
+            "com/mchange/v2/Debug.class"
+    ]
+}
