@@ -19,9 +19,11 @@ import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.logging.LogLevel
+import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.TaskAction
 import org.gradle.api.tasks.VerificationTask
 
+import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
 
 /**
@@ -29,6 +31,8 @@ import java.util.zip.ZipFile
  */
 class CheckDuplicateClassesTask extends DefaultTask implements VerificationTask {
     private boolean _ignoreFailures = false
+
+    private List<String> exclusions = new ArrayList<>();
 
     @TaskAction
     void checkForDuplicateClasses() {
@@ -65,7 +69,7 @@ class CheckDuplicateClassesTask extends DefaultTask implements VerificationTask 
             logger.info( "    '${artifact.file.path}' of '${artifact.moduleVersion}'" )
 
             new ZipFile( artifact.file ).entries().each { entry ->
-                if ( !entry.isDirectory() && !entry.name.startsWith( 'META-INF/' ) ) {
+                if ( checkIfApplicable( entry ) ) {
                     final Set modules = modulesByFile.get( entry.name )
                     modules.add( artifact.moduleVersion.toString() )
                     modulesByFile.put( entry.name, modules )
@@ -74,12 +78,17 @@ class CheckDuplicateClassesTask extends DefaultTask implements VerificationTask 
         }
 
         Map duplicateFiles = modulesByFile.findAll { it.value.size() > 1 }
+
         if ( duplicateFiles ) {
             logger.info( buildMessageWithConflictingClasses( duplicateFiles ) )
             return "\n\n${configuration.name}\n${buildMessageWithUniqueModules( duplicateFiles.values() )}"
         }
 
         return ''
+    }
+
+    boolean checkIfApplicable(ZipEntry entry) {
+        return !entry.isDirectory() && !entry.name.startsWith('META-INF/') && !exclusions.contains( entry.name )
     }
 
     static String buildMessageWithConflictingClasses( final Map<String, Set> duplicateFiles ) {
@@ -142,5 +151,14 @@ class CheckDuplicateClassesTask extends DefaultTask implements VerificationTask 
     @Override
     boolean getIgnoreFailures() {
         return _ignoreFailures
+    }
+
+    @Input
+    List<String> getExclusions() {
+        return exclusions
+    }
+
+    void setExclusions(List<String> _exclusions) {
+        this.exclusions = _exclusions
     }
 }
