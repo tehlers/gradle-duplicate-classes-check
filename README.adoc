@@ -1,6 +1,9 @@
 # Gradle - Check duplicate classes 
 
-This Gradle plugin checks whether different artifacts in a configuration provide the same classes. Since this leads to rather nasty bugs, you probably want to find these problems beforehand. A typical cause of such issues are artifacts that changed their maven group id but kept there packages like 'c3p0:c3p0' that has been renamed to 'com.mchange:c3p0'.
+This Gradle plugin checks whether different artifacts in a configuration provide the same classes.
+Since this leads to rather nasty bugs, you probably want to find these problems beforehand. A typical
+cause of such issues are artifacts that changed their maven group id but kept there packages
+like 'c3p0:c3p0' that has been renamed to 'com.mchange:c3p0'.
 
 ## Usage
 
@@ -37,6 +40,80 @@ apply plugin: 'net.idlestate.gradle-duplicate-classes-check'
 to apply the plugin to your project.
 
 The check is performed by the task `checkForDuplicateClasses` that has been added as dependency to the task `check`.
+
+## Fail the build or just get a report
+
+By default, this task fails the build if any duplicate files are found in the dependency JAR's. You can change that and just get a report when you set
+`ignoreFailures = true`
+
+.build.gradle
+[source,groovy]
+--------------------------------------------------------------------
+plugins {
+  id 'net.idlestate.gradle-duplicate-classes-check' version '1.0.2'
+}
+
+checkForDuplicateClasses {
+    ignoreFailures = true
+}
+--------------------------------------------------------------------
+
+## Define which files to include in comparison
+
+By default, all dependencies are included in the comparison and the following files and directory content is excluded:
+
+* directory names
+* files in `META-INF`, and it's subdirectories
+* files in `OSGI-INF`, and it's subdirectories
+* `module-info.class`
+* `*.html`
+* `*.htm`
+* `*.txt`
+* `*.doc`
+* `README.*`
+
+To add more filters to the list you can use `excludes()`. It takes one or more regular expressions as parameter that is used to match against file name.
+
+You can also specify explicitly which files to be compared with `includes()`. It also accepts one or more regular expressions as parameter.
+`excludes` take precedence when matching file names.
+
+You can also use `includes` and `excludes` to filter for specific *JAR* files.
+
+.build.gradle
+[source,groovy]
+--------------------------------------------------------------------
+plugins {
+  id 'net.idlestate.gradle-duplicate-classes-check' version '1.0.2'
+}
+
+checkForDuplicateClasses {
+    // Exclude all jar files that has javax in their name
+    excludes('(javax)*.(.jar)')
+
+    // This will exclude *.rtf files from comparison
+    excludes('.*(.rtf)^')
+
+    // Will check for presence only for class files that has OnlyThese in their name
+    includes('(OnlyThese).*(.class)^')
+}
+--------------------------------------------------------------------
+
+## Usage in multi-module projects
+
+When you use this plugin in multi-module projects, and you have enabled parallel builds it is recommended to add `dependsOn`
+to `checkForDuplicateClasses` task. This will guarantee that task will execute after all dependencies have been generated.
+
+.build.gradle
+[source,groovy]
+--------------------------------------------------------------------
+plugins {
+  id 'net.idlestate.gradle-duplicate-classes-check' version '1.0.2'
+}
+
+checkForDuplicateClasses {
+    dependsOn 'jar'
+}
+--------------------------------------------------------------------
 
 ## License
 
