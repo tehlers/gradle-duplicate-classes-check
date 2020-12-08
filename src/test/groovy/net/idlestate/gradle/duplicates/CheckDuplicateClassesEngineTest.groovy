@@ -41,12 +41,19 @@ class CheckDuplicateClassesEngineTest extends GroovyTestCase {
             engine.processArtifact(it, it.name, modulesByFile)
         }
 
-        println(CheckDuplicateClassesEngine.searchForDuplicates(modulesByFile, "test", { println(it) }))
+        def result = CheckDuplicateClassesEngine.searchForDuplicates(modulesByFile, "test", {  })
+
+        try {
+            println(result)
+            assertEquals(-1949525080, result.hashCode())
+        } catch (Exception e) {
+            throw e;
+        }
     }
 
     @Test
     void testExcludeJarFiles() {
-        def engine = new CheckDuplicateClassesEngine(['^.*(avro-).*(.jar)$'], [] as List)
+        def engine = new CheckDuplicateClassesEngine(['^.*(jakarta).*(.jar)$'], [] as List)
 
         URL resourceUrl = getClass().getClassLoader().getResource("libs")
 
@@ -61,6 +68,12 @@ class CheckDuplicateClassesEngineTest extends GroovyTestCase {
             engine.processArtifact(it, it.name, modulesByFile)
         }
 
-        println(CheckDuplicateClassesEngine.searchForDuplicates(modulesByFile, "test", { println(it) }))
+        def result = CheckDuplicateClassesEngine.searchForDuplicates(modulesByFile, "test", { })
+        try {
+            println(result)
+            assertEquals(1023966719, result.hashCode())
+        } catch (Exception e) {
+            throw e;
+        }
     }
 }
