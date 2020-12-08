@@ -73,8 +73,15 @@ class CheckDuplicateClassesTask extends DefaultTask implements VerificationTask 
         Map<String, Set> modulesByFile = [:].withDefault { key -> [] as Set }
 
         configuration.resolvedConfiguration.resolvedArtifacts.each { artifact ->
-            logger.info("    '${artifact.file.path}' of '${artifact.moduleVersion}'")
+            if (artifact.moduleVersion != null) {
+                logger.info("    '${artifact.file.path}' of '${artifact.moduleVersion}'")
+            } else {
+                logger.info("    '${artifact.file.path}'")
+            }
 
+            if (!artifact.file.exists()) {
+                throw new GradleException("File `$artifact.file.path` does not exist!!!")
+            }
             engine.processArtifact(artifact.file, artifact.moduleVersion.toString(), modulesByFile)
         }
 
