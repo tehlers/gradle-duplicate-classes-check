@@ -25,7 +25,6 @@ public class CheckDuplicateClassesEngine {
             Arrays.asList('^(META-INF/).*',
                     '^(OSGI-INF/).*',
                     '^(module-info.class)$',
-                    '^.*(.txt)$',
                     '^.*(.html)$',
                     '^.*(.htm)$',
                     '^.*(.txt)$',
