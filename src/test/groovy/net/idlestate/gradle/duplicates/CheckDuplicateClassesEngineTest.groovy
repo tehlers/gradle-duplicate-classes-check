@@ -15,7 +15,6 @@
  */
 package net.idlestate.gradle.duplicates
 
-
 import org.gradle.internal.impldep.org.junit.Test
 
 import java.nio.file.Files
@@ -28,52 +27,53 @@ class CheckDuplicateClassesEngineTest extends GroovyTestCase {
     void testSearchForDuplicates() {
         def engine = new CheckDuplicateClassesEngine([] as List, [] as List)
 
-        URL resourceUrl = getClass().getClassLoader().getResource("libs")
+        Path libsPath = testJarsPath()
 
-        Path libsPath = Paths.get(resourceUrl.toURI())
+        Map<String, Set> modulesByFile =
+                processArtifacts(libsPath, engine)
 
-        Map<String, Set> modulesByFile = [:].withDefault { key -> [] as Set }
-        Files.walk(libsPath).map {
-            it.toFile()
-        }.filter {
-            it.isFile()
-        }.each {
-            engine.processArtifact(it, it.name, modulesByFile)
-        }
-
-        def result = CheckDuplicateClassesEngine.searchForDuplicates(modulesByFile, "test", {  })
+        def result = CheckDuplicateClassesEngine.searchForDuplicates(modulesByFile, "test", null)
 
         try {
             println(result)
             assertEquals(-1949525080, result.hashCode())
         } catch (Exception e) {
-            throw e;
+            throw e
         }
+    }
+
+    private Path testJarsPath() {
+        URL resourceUrl = getClass().getClassLoader().getResource("libs")
+
+        Paths.get(resourceUrl.toURI())
     }
 
     @Test
     void testExcludeJarFiles() {
         def engine = new CheckDuplicateClassesEngine(['^.*(jakarta).*(.jar)$'], [] as List)
+        Path libsPath = testJarsPath()
 
-        URL resourceUrl = getClass().getClassLoader().getResource("libs")
+        Map<String, Set> modulesByFile = processArtifacts(libsPath, engine)
 
-        Path libsPath = Paths.get(resourceUrl.toURI())
-
-        Map<String, Set> modulesByFile = [:].withDefault { key -> [] as Set }
-        Files.walk(libsPath).map {
-            it.toFile()
-        }.filter {
-            it.isFile()
-        }.each {
-            engine.processArtifact(it, it.name, modulesByFile)
-        }
-
-        def result = CheckDuplicateClassesEngine.searchForDuplicates(modulesByFile, "test", { })
+        def result = CheckDuplicateClassesEngine.searchForDuplicates(modulesByFile, "test", null)
         try {
             println(result)
             assertEquals(1023966719, result.hashCode())
         } catch (Exception e) {
-            throw e;
+            throw e
         }
+    }
+
+    private static Map<String, Set> processArtifacts(Path libsPath, engine) {
+        Collection<File> artifactsPath = Files.walk(libsPath).map {
+            it.toFile()
+        }.findAll {
+            it.isFile()
+        }.collect()
+
+        artifactsPath.stream().flatMap { jarFile ->
+            engine.processArtifact(jarFile).stream().
+                    map {new FileToVersion(it, jarFile.name) }
+        }.collect(CheckDuplicateClassesEngine.concurrentMapCollector())
     }
 }

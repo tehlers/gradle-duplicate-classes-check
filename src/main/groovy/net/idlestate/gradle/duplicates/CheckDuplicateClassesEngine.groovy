@@ -18,9 +18,11 @@ package net.idlestate.gradle.duplicates
 
 import java.util.function.Consumer
 import java.util.regex.Pattern
+import java.util.stream.Collector
+import java.util.stream.Collectors
 import java.util.zip.ZipFile
 
-public class CheckDuplicateClassesEngine {
+class CheckDuplicateClassesEngine {
     private static final List<String> defaultExclude =
             Arrays.asList('^(META-INF/).*',
                     '^(OSGI-INF/).*',
@@ -31,12 +33,12 @@ public class CheckDuplicateClassesEngine {
                     '^.*(.doc)$',
                     '^(README).*')
 
-    private Pattern excludePattern;
+    private Pattern excludePattern
 
-    private Pattern includePattern;
+    private Pattern includePattern
 
     CheckDuplicateClassesEngine(List<String> excludes, List<String> includes) {
-        excludes.addAll(defaultExclude);
+        excludes.addAll(defaultExclude)
 
         excludePattern = ~excludes.join('|')
         includePattern = includes.isEmpty() ? ~'.*' : ~includes.join('|')
@@ -44,38 +46,47 @@ public class CheckDuplicateClassesEngine {
 
     static boolean isValidEntry(final entry, final excludePattern, final includePattern) {
         if (entry.isDirectory()) {
-            return false;
+            return false
         }
 
         if (excludePattern.matcher(entry.name).find()) {
-            return false;
+            return false
         }
 
-        return includePattern.matcher(entry.name).find();
+        return includePattern.matcher(entry.name).find()
     }
 
-    static String searchForDuplicates(Map<String, Set> modulesByFile, def configurationName, Consumer<String> detailedInfo) {
-        Map duplicateFiles = modulesByFile.findAll { it.value.size() > 1 }
+    static String searchForDuplicates(Map<String, Set<String>> modulesByFile, def configurationName, Consumer<String> detailedInfo) {
+        Map<String, Set<String>> duplicateFiles = modulesByFile.findAll { it.value.size() > 1 }
+        modulesByFile.clear()
+
         if (duplicateFiles) {
-            detailedInfo.accept(buildMessageWithConflictingClasses(duplicateFiles))
+            if (detailedInfo != null)
+            {
+                detailedInfo.accept(buildMessageWithConflictingClasses(duplicateFiles))
+            }
             return "\n\n${configurationName}\n${buildMessageWithUniqueModules(duplicateFiles.values())}"
         }
 
         return ''
     }
 
-    void processArtifact(File artifactFile, def moduleVersion, def modulesByFile) {
+    static Collector<FileToVersion, ?, Map<String, Set<String>>> concurrentMapCollector() {
+        Collectors.toMap({ FileToVersion it -> it.file },
+                { FileToVersion it -> Collections.singleton(it.version) },
+                { Set<String> a, Set<String> b ->
+                    a.addAll(b)
+                    return a
+                }, { Collections.synchronizedMap([:].withDefault { key -> [] as Set<String> }) })
+    }
+
+    Collection<String> processArtifact(File artifactFile) {
         if (!isValidEntry(artifactFile, excludePattern, includePattern)) {
-            return;
+            return Collections.emptySet()
         }
 
-        new ZipFile(artifactFile).entries().each { entry ->
-            if (isValidEntry(entry, excludePattern, includePattern)) {
-                final Set modules = modulesByFile.get(entry.name)
-                modules.add(moduleVersion)
-                modulesByFile.put(entry.name, modules)
-            }
-        }
+        new ZipFile(artifactFile).entries().findAll { isValidEntry(it, excludePattern, includePattern) }.
+                collect { it.name }
     }
 
     static String buildMessageWithConflictingClasses(final Map<String, Set> duplicateFiles) {
@@ -110,7 +121,7 @@ public class CheckDuplicateClassesEngine {
         return moduleMessages.join('\n')
     }
 
-    static String joinModules(final Set modules) {
+    static String joinModules(final Set<String> modules) {
         return modules.sort({ first, second ->
             (first <=> second)
         }).join(', ')
