@@ -14,8 +14,11 @@ apply plugin: 'groovy'
 group = 'net.idlestate'
 version = '1.0.3-SNAPSHOT'
 
+def functionalTest = sourceSets.create("functionalTest")
+
 dependencies {
     testImplementation 'junit:junit:4.13'
+    functionalTestImplementation 'junit:junit:4.13'
 }
 
 licenseTest {
@@ -33,6 +36,20 @@ gradlePlugin {
             implementationClass = 'net.idlestate.gradle.duplicates.CheckDuplicateClassesPlugin'
         }
     }
+
+    testSourceSets(sourceSets.functionalTest)
+}
+
+def functionalTestTask = tasks.register("functionalTest", Test) {
+    description = 'Runs the functional tests.'
+    group = "verification"
+    testClassesDirs = functionalTest.output.classesDirs
+    classpath = functionalTest.runtimeClasspath
+    mustRunAfter(tasks.test)
+}
+
+check {
+    dependsOn(functionalTestTask)
 }
 
 pluginBundle {
