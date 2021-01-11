@@ -35,20 +35,21 @@ class CheckDuplicateClassesTask extends DefaultTask implements VerificationTask 
 
     private boolean _ignoreFailures = false
 
-    @Internal
+    private boolean _generateReport = false;
+
+    private File reportDirectory;
+
+    CheckDuplicateClassesTask() {
+    }
+
     private List<Configuration> configurationsToCheck = [] as List<Configuration>
 
     private List<String> excludes = [] as List<String>
 
     private List<String> includes = [] as List<String>
 
-    CheckDuplicateClassesTask() {
-    }
-
     @TaskAction
     void checkForDuplicateClasses() {
-        final StringBuilder result = new StringBuilder()
-
         def engine = new CheckDuplicateClassesEngine(excludes, includes)
 
         if (configurationsToCheck.isEmpty()) {
@@ -72,14 +73,40 @@ class CheckDuplicateClassesTask extends DefaultTask implements VerificationTask 
         processResult(configurationResult)
     }
 
-    private void processResult(StringBuilder result) {
+    private void prepareReportDirectory() {
+        if (reportDirectory != null) {
+            return
+        }
+
+        if (!project.buildDir.exists()) {
+            project.buildDir.mkdir()
+        }
+
+        def reportDir = project.buildDir.toPath().resolve("report").toFile()
+        if (!reportDir.exists()) {
+            reportDir.mkdir()
+        }
+
+        this.reportDirectory = reportDir.toPath().resolve("duplicate_classes").toFile()
+        if (!this.reportDirectory.exists()) {
+            this.reportDirectory.mkdir()
+        }
+    }
+
+    private void processResult(Map<Configuration, Collection<List<String>>> result) {
         final StringBuilder message = new StringBuilder('There are conflicting files in the modules of the following configurations')
 
         if (!logger.isInfoEnabled()) {
             message.append(' (add --info for details)')
         }
 
-        message.append(":${result.toString()}")
+        if (!_generateReport) {
+            message.append(' (add generateReport = true to task parameters get detailed report)')
+        }
+
+        result.entrySet().stream().forEach{
+            message.append("\n\n${it.key.name}\n${buildMessageWithUniqueModules(it.value)}")
+        }
 
         if (_ignoreFailures) {
             logger.warn(message.toString())
@@ -88,14 +115,21 @@ class CheckDuplicateClassesTask extends DefaultTask implements VerificationTask 
         }
     }
 
-    String checkConfiguration(final Configuration configuration, CheckDuplicateClassesEngine engine) {
+    Collection<List<String>> checkConfiguration(final Configuration configuration, CheckDuplicateClassesEngine engine) {
         def artifactsStream = configuration.resolvedConfiguration.resolvedArtifacts.stream()
-        Map<String, Set<String>> modulesByFile = artifactsStream.flatMap { artifact ->
+
+        Map<String, Set<String>> filesByArtifact = artifactsStream.flatMap { artifact ->
             processArtifact(artifact, engine).stream().
                     map { new FileToVersion(it, artifact.moduleVersion.toString()) }
         }.collect(concurrentMapCollector())
 
-        return searchForDuplicates(modulesByFile, configuration.name, logger.isInfoEnabled() ? { logger.info(it) } : null)
+        Map<String, Set<String>> modulesByFile = filesByArtifact.entrySet().stream().flatMap { es ->
+            es.value.stream().map {
+                new FileToVersion(es.key, it)
+            }
+        }.collect(concurrentMapCollector())
+
+        return searchForDuplicates(modulesByFile, logger.isInfoEnabled() ? { logger.info(it) } : null)
     }
 
 
@@ -149,38 +183,41 @@ class CheckDuplicateClassesTask extends DefaultTask implements VerificationTask 
 
     CheckDuplicateClassesTask excludes(Iterable<String> excludes) {
         this.excludes.addAll(excludes)
-        return this
+        this
     }
 
     CheckDuplicateClassesTask includes(String... includes) {
         this.includes.addAll(includes.collect())
-        return this
+        this
     }
 
     CheckDuplicateClassesTask includes(Iterable<String> includes) {
         this.includes.addAll(includes)
-        return this
+        this
     }
 
     CheckDuplicateClassesTask excludes(String... excludes) {
         this.excludes.addAll(excludes.collect())
-        return this
+        this
     }
 
     CheckDuplicateClassesTask configurationsToCheck(Configuration... configurations) {
         this.configurationsToCheck.addAll(configurations.collect())
-        return this
+        this
     }
 
     CheckDuplicateClassesTask configurationsToCheck(Iterable<Configuration> configurations) {
         this.configurationsToCheck.addAll(configurations.collect())
-        return this
+        this
     }
 
     CheckDuplicateClassesTask configurationsToCheck(Configuration configuration) {
         this.configurationsToCheck.add(configuration)
-        return this
+        this
     }
 
-
+    CheckDuplicateClassesTask reportDirectory(File reportDirectory) {
+        this.reportDirectory = reportDirectory
+        this
+    }
 }

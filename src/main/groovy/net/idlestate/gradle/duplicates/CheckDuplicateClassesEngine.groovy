@@ -57,24 +57,25 @@ class CheckDuplicateClassesEngine {
         return includePattern.matcher(entry.name).find()
     }
 
-    static String searchForDuplicates(Map<String, Set<String>> modulesByFile, def configurationName, Consumer<String> detailedInfo) {
+    static Collection<Set<String>> searchForDuplicates(Map<String, Set<String>> modulesByFile, Consumer<String> detailedInfo) {
         Map<String, Set<String>> duplicateFiles = modulesByFile.findAll { it.value.size() > 1 }
         modulesByFile.clear()
 
-        if (duplicateFiles) {
-            if (detailedInfo != null)
-            {
-                detailedInfo.accept(buildMessageWithConflictingClasses(duplicateFiles))
-            }
-            return "\n\n${configurationName}\n${buildMessageWithUniqueModules(duplicateFiles.values())}"
+        if (!duplicateFiles) {
+            return Collections.EMPTY_LIST
         }
 
-        return ''
+        if (detailedInfo != null) {
+            detailedInfo.accept(buildMessageWithConflictingClasses(duplicateFiles))
+        }
+
+        duplicateFiles.values()
     }
 
+    @SuppressWarnings('GroovyAssignabilityCheck')
     static Collector<FileToVersion, ?, Map<String, Set<String>>> concurrentMapCollector() {
-        Collectors.toMap({ FileToVersion it -> it.file },
-                { FileToVersion it -> Collections.singleton(it.version) },
+        Collectors.toMap({ FileToVersion it -> it.version },
+                { FileToVersion it -> Collections.singleton(it.file) },
                 { Set<String> a, Set<String> b ->
                     a.addAll(b)
                     return a
@@ -109,7 +110,7 @@ class CheckDuplicateClassesEngine {
         return message.toString()
     }
 
-    static String buildMessageWithUniqueModules(final Collection conflictingModules) {
+    static String buildMessageWithUniqueModules(final Collection<Set<String>> conflictingModules) {
         List moduleMessages = []
 
         conflictingModules.each { modules ->
