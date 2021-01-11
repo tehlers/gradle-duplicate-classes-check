@@ -9,4 +9,9 @@ class FileToVersion {
             this.file = file
             this.version = version
         }
+
+    @Override
+    String toString() {
+        return "file: ${file} version: ${version}"
     }
+}

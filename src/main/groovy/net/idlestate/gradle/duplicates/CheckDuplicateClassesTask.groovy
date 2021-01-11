@@ -19,12 +19,13 @@ import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.artifacts.ResolvedArtifact
-import org.gradle.api.tasks.Internal
+import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.TaskAction
 import org.gradle.api.tasks.VerificationTask
 
-import static net.idlestate.gradle.duplicates.CheckDuplicateClassesEngine.concurrentMapCollector
-import static net.idlestate.gradle.duplicates.CheckDuplicateClassesEngine.searchForDuplicates
+import java.util.stream.Collectors
+
+import static net.idlestate.gradle.duplicates.CheckDuplicateClassesEngine.*
 
 /**
  * Checks whether the artifacts of the configurations of the project contain the same classes.
@@ -36,10 +37,8 @@ class CheckDuplicateClassesTask extends DefaultTask implements VerificationTask 
     @Internal
     private List<Configuration> configurationsToCheck = [] as List<Configuration>
 
-    @Internal
     private List<String> excludes = [] as List<String>
 
-    @Internal
     private List<String> includes = [] as List<String>
 
     CheckDuplicateClassesTask() {
@@ -55,18 +54,21 @@ class CheckDuplicateClassesTask extends DefaultTask implements VerificationTask 
             configurationsToCheck.addAll(project.configurations)
         }
 
-        configurationsToCheck.findAll { isConfigurationResolvable(it) }.
-                collect { configuration ->
-                    logger.info("Checking configuration '${configuration.name}'")
-                    checkConfiguration(configuration, engine)
-                }.
-                collect {
-                    result.append(it)
-                }
-
-        if (result) {
-            processResult(result)
+        if (_generateReport) {
+            prepareReportDirectory()
         }
+
+        Map<Configuration, Collection<List<String>>> configurationResult = configurationsToCheck.stream().filter { isConfigurationResolvable(it) }.
+                collect(Collectors.toMap({ it }, {
+                    logger.info("Checking configuration '${it.name}'")
+                    checkConfiguration(it, engine)
+                }))
+
+        if (configurationResult.isEmpty() || configurationResult.values().findAll({!it.isEmpty()}).isEmpty()) {
+            return
+        }
+
+        processResult(configurationResult)
     }
 
     private void processResult(StringBuilder result) {
@@ -132,6 +134,16 @@ class CheckDuplicateClassesTask extends DefaultTask implements VerificationTask 
     @Override
     boolean getIgnoreFailures() {
         return _ignoreFailures
+    }
+
+    @Input
+    boolean getGenerateReport() {
+        return _generateReport
+    }
+
+    void setGenerateReport(boolean generateReport) {
+        println "setGenerateReport"
+        this._generateReport = generateReport
     }
 
     CheckDuplicateClassesTask excludes(Iterable<String> excludes) {

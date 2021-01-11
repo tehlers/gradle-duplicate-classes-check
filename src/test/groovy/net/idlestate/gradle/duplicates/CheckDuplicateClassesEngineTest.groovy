@@ -21,7 +21,19 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 
+import static net.idlestate.gradle.duplicates.CheckDuplicateClassesEngine.buildMessageWithUniqueModules
+import static net.idlestate.gradle.duplicates.CheckDuplicateClassesEngine.concurrentMapCollector
+
 class CheckDuplicateClassesEngineTest extends GroovyTestCase {
+
+    private static TEST_1_EXPECTED = "\n" +
+            "\n" +
+            "test\n" +
+            "    axiom-dom.jar, axiom-impl.jar\n" +
+            "    geronimo-jta_1.1_spec-1.1.1.jar, javax.transaction-api-1.3.jar, jboss-transaction-api_1.2_spec-1.0.1.Final.jar\n" +
+            "    geronimo-jta_1.1_spec-1.1.1.jar, jboss-transaction-api_1.2_spec-1.0.1.Final.jar\n" +
+            "    jakarta.activation-api-1.2.1.jar, javax.activation-api-1.2.0.jar\n" +
+            "    javax.transaction-api-1.3.jar, jboss-transaction-api_1.2_spec-1.0.1.Final.jar"
 
     @Test
     void testSearchForDuplicates() {
@@ -32,11 +44,12 @@ class CheckDuplicateClassesEngineTest extends GroovyTestCase {
         Map<String, Set> modulesByFile =
                 processArtifacts(libsPath, engine)
 
-        def result = CheckDuplicateClassesEngine.searchForDuplicates(modulesByFile, "test", null)
+        def result = CheckDuplicateClassesEngine.searchForDuplicates(modulesByFile, null)
 
         try {
-            println(result)
-            assertEquals(-1949525080, result.hashCode())
+            def string = "\n\ntest\n${buildMessageWithUniqueModules(result)}"
+            println(string)
+            assertEquals(TEST_1_EXPECTED, string)
         } catch (Exception e) {
             throw e
         }
@@ -48,6 +61,14 @@ class CheckDuplicateClassesEngineTest extends GroovyTestCase {
         Paths.get(resourceUrl.toURI())
     }
 
+    private static String TEST_2_RESULT = "\n" +
+            "\n" +
+            "test\n" +
+            "    axiom-dom.jar, axiom-impl.jar\n" +
+            "    geronimo-jta_1.1_spec-1.1.1.jar, javax.transaction-api-1.3.jar, jboss-transaction-api_1.2_spec-1.0.1.Final.jar\n" +
+            "    geronimo-jta_1.1_spec-1.1.1.jar, jboss-transaction-api_1.2_spec-1.0.1.Final.jar\n" +
+            "    javax.transaction-api-1.3.jar, jboss-transaction-api_1.2_spec-1.0.1.Final.jar"
+
     @Test
     void testExcludeJarFiles() {
         def engine = new CheckDuplicateClassesEngine(['^.*(jakarta).*(.jar)$'], [] as List)
@@ -55,25 +76,32 @@ class CheckDuplicateClassesEngineTest extends GroovyTestCase {
 
         Map<String, Set> modulesByFile = processArtifacts(libsPath, engine)
 
-        def result = CheckDuplicateClassesEngine.searchForDuplicates(modulesByFile, "test", null)
+        def result = CheckDuplicateClassesEngine.searchForDuplicates(modulesByFile, null)
         try {
-            println(result)
-            assertEquals(1023966719, result.hashCode())
+            def string = "\n\ntest\n${buildMessageWithUniqueModules(result)}"
+            println(string)
+            assertEquals(TEST_2_RESULT, string)
         } catch (Exception e) {
             throw e
         }
     }
 
-    private static Map<String, Set> processArtifacts(Path libsPath, engine) {
+    private static Map<String, Set<String>> processArtifacts(Path libsPath, engine) {
         Collection<File> artifactsPath = Files.walk(libsPath).map {
             it.toFile()
         }.findAll {
             it.isFile()
         }.collect()
 
-        artifactsPath.stream().flatMap { jarFile ->
-            engine.processArtifact(jarFile).stream().
-                    map {new FileToVersion(it, jarFile.name) }
-        }.collect(CheckDuplicateClassesEngine.concurrentMapCollector())
+        Map<String, Set<String>> filesByArtifact = artifactsPath.stream().flatMap { artifact ->
+            engine.processArtifact(artifact).stream().
+                    map { new FileToVersion(it, artifact.name) }
+        }.collect(concurrentMapCollector())
+
+        filesByArtifact.entrySet().stream().flatMap { es ->
+            es.value.stream().map {
+                new FileToVersion(es.key, it)
+            }
+        }.collect(concurrentMapCollector())
     }
 }
