@@ -16,7 +16,7 @@
  */
 package net.idlestate.gradle.duplicates
 
-
+import java.nio.file.Path
 import java.util.function.Consumer
 import java.util.regex.Pattern
 import java.util.stream.Collector
@@ -57,19 +57,19 @@ class CheckDuplicateClassesEngine {
         return includePattern.matcher(entry.name).find()
     }
 
-    static Collection<Set<String>> searchForDuplicates(Map<String, Set<String>> modulesByFile, Consumer<String> detailedInfo) {
-        Map<String, Set<String>> duplicateFiles = modulesByFile.findAll { it.value.size() > 1 }
-        modulesByFile.clear()
+    static Collection<Set<String>> searchForDuplicates(Map<String, Set<String>> jarsByClass, Consumer<String> detailedInfo) {
+        Map<String, Set<String>> duplicateJarsByClass = jarsByClass.findAll { it.value.size() > 1 }
+        jarsByClass.clear()
 
-        if (!duplicateFiles) {
+        if (!duplicateJarsByClass) {
             return Collections.EMPTY_LIST
         }
 
         if (detailedInfo != null) {
-            detailedInfo.accept(buildMessageWithConflictingClasses(duplicateFiles))
+            detailedInfo.accept(buildMessageWithConflictingClasses(duplicateJarsByClass))
         }
 
-        duplicateFiles.values()
+        new HashSet<>(duplicateJarsByClass.values())
     }
 
     @SuppressWarnings('GroovyAssignabilityCheck')
@@ -80,6 +80,17 @@ class CheckDuplicateClassesEngine {
                     a.addAll(b)
                     return a
                 }, { Collections.synchronizedMap([:].withDefault { key -> [] as Set<String> }) })
+    }
+
+    static void writeReportFiles(Path path, Map<String, String> reportMap) {
+        reportMap.keySet().forEach { name ->
+            new FileWriter(path.resolve(name).toFile()).with { writer ->
+                writer.write(reportMap.get(name))
+                writer.flush()
+                writer.close()
+            }
+        }
+
     }
 
     Collection<String> processArtifact(File artifactFile) {
@@ -95,11 +106,11 @@ class CheckDuplicateClassesEngine {
         Map<String, List<String>> conflictingClasses = [:].withDefault { key -> [] }
 
         duplicateFiles.collectEntries(conflictingClasses) { entry ->
-            String key = entry.getValue().join(', ')
-            List values = conflictingClasses.get(key)
+            String jars = entry.getValue().join(', ')
+            List values = conflictingClasses.get(jars)
             values.add(entry.getKey())
 
-            [key, values]
+            [jars, values]
         }
 
         final StringBuilder message = new StringBuilder()
@@ -127,6 +138,79 @@ class CheckDuplicateClassesEngine {
         return modules.sort({ first, second ->
             (first <=> second)
         }).join(', ')
+    }
+
+    static Map<String, String> buildReport(Map<String, Set<String>> classesByArtifactMap, Collection<List<String>> jarsWithDuplicateClasses) {
+        Map<String, String> result = [:]
+
+        def indexTemplate = readTemplateResource("index.html")
+
+        if (jarsWithDuplicateClasses.isEmpty()) {
+            def indexHtml = indexTemplate.replace("_____files rows_____", "There are no JAR files with duplicate classes.")
+            result.put("index.html", indexHtml)
+            return result
+        }
+
+        StringBuilder indexHtml = new StringBuilder()
+        Map<String, List<String>> duplicateMap = jarsWithDuplicateClasses.stream().filter {
+            it.size() > 1
+        }.flatMap {
+            def tempFileName = "duplicate_classes" + it.hashCode() + ".html"
+            indexHtml.append('<li>').append('<a href="').append(tempFileName).append('">').append(it.stream().collect(Collectors.joining(","))).append('</a></li><br/>\n')
+            Collections.singletonMap(tempFileName, it).entrySet().stream()
+        }.collect(Collectors.toMap({
+            it.getKey()
+        }, {
+            it.getValue()
+        }))
+
+        duplicateMap.keySet().forEach {
+            result.put(it, generateDuplicateClassesReport(new ArrayList<String>(duplicateMap.get(it)), classesByArtifactMap))
+        }
+
+        result.put("index.html", indexTemplate.replace("_____files rows_____", indexHtml.toString()))
+
+        result
+    }
+
+    static String generateDuplicateClassesReport(List<String> jarFiles, Map<String, Set<String>> jarFileContent) {
+        def allFiles = jarFiles.stream().flatMap {
+            jarFileContent.get(it).stream()
+        }.collect(Collectors.toSet())
+
+        allFiles = allFiles.sort()
+        jarFiles = jarFiles.sort()
+
+        String htmlTemplate = readTemplateResource("detail.html")
+
+        htmlTemplate = buildTableHeader(jarFiles, htmlTemplate)
+
+        StringBuilder classesRows = new StringBuilder()
+        allFiles.forEach { file ->
+            classesRows.append("<tr>").append("<td>").append(file).append("</td>")
+            jarFiles.forEach {
+                def value = jarFileContent.get(it).contains(file) ? "*" : "-"
+                classesRows.append("<td class=\"present\">").append(value).append("</td>")
+            }
+            classesRows.append("</tr>")
+        }
+
+        htmlTemplate.replace("____class file names____", classesRows.toString())
+    }
+
+    private static String readTemplateResource(def name) {
+        new BufferedReader(new InputStreamReader(CheckDuplicateClassesEngine.class.getResourceAsStream(name))).with {
+            it.readLines().stream().collect(Collectors.joining(System.lineSeparator()))
+        }
+    }
+
+    private static String buildTableHeader(List<String> jarFiles, String htmlTemplate) {
+        StringBuilder tableHead = new StringBuilder("<td>Path</td>")
+        jarFiles.forEach {
+            tableHead.append("<td>").append(it).append("</td>")
+        }
+
+        htmlTemplate.replace("____jar file names____", tableHead.toString())
     }
 
 }

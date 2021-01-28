@@ -21,8 +21,13 @@ dependencies {
     functionalTestImplementation 'junit:junit:4.13'
 }
 
-licenseTest {
+license {
     exclude('**/*.jar')
+    exclude('**/*.html')
+}
+
+licenseTest {
+    exclude('**/*.jar', '**/*.html')
 }
 
 test {

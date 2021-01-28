@@ -31,10 +31,12 @@ class CheckDuplicateClassesEngineTest extends GroovyTestCase {
             "\n" +
             "test\n" +
             "    axiom-dom.jar, axiom-impl.jar\n" +
-            "    geronimo-jta_1.1_spec-1.1.1.jar, javax.transaction-api-1.3.jar, jboss-transaction-api_1.2_spec-1.0.1.Final.jar\n" +
-            "    geronimo-jta_1.1_spec-1.1.1.jar, jboss-transaction-api_1.2_spec-1.0.1.Final.jar\n" +
+            "    javax.transaction-api-1.3.jar, jboss-transaction-api_1.2_spec-1.0.1.Final.jar\n" +
             "    jakarta.activation-api-1.2.1.jar, javax.activation-api-1.2.0.jar\n" +
-            "    javax.transaction-api-1.3.jar, jboss-transaction-api_1.2_spec-1.0.1.Final.jar"
+            "    geronimo-jta_1.1_spec-1.1.1.jar, jboss-transaction-api_1.2_spec-1.0.1.Final.jar\n" +
+            "    geronimo-jta_1.1_spec-1.1.1.jar, javax.transaction-api-1.3.jar, jboss-transaction-api_1.2_spec-1.0.1.Final.jar"
+
+    private Map<String, Set<String>> classesByJar
 
     @Test
     void testSearchForDuplicates() {
@@ -66,9 +68,9 @@ class CheckDuplicateClassesEngineTest extends GroovyTestCase {
             "\n" +
             "test\n" +
             "    axiom-dom.jar, axiom-impl.jar\n" +
-            "    geronimo-jta_1.1_spec-1.1.1.jar, javax.transaction-api-1.3.jar, jboss-transaction-api_1.2_spec-1.0.1.Final.jar\n" +
+            "    javax.transaction-api-1.3.jar, jboss-transaction-api_1.2_spec-1.0.1.Final.jar\n" +
             "    geronimo-jta_1.1_spec-1.1.1.jar, jboss-transaction-api_1.2_spec-1.0.1.Final.jar\n" +
-            "    javax.transaction-api-1.3.jar, jboss-transaction-api_1.2_spec-1.0.1.Final.jar"
+            "    geronimo-jta_1.1_spec-1.1.1.jar, javax.transaction-api-1.3.jar, jboss-transaction-api_1.2_spec-1.0.1.Final.jar"
 
     @Test
     void testExcludeJarFiles() {
@@ -87,22 +89,52 @@ class CheckDuplicateClassesEngineTest extends GroovyTestCase {
         }
     }
 
-    private static Map<String, Set<String>> processArtifacts(Path libsPath, engine) {
+    @Test
+    def testReportGenerator() {
+        def engine = new CheckDuplicateClassesEngine([] as List, [] as List)
+
+        Path libsPath = testJarsPath()
+
+        Map<String, Set> modulesByFile =
+                processArtifacts(libsPath, engine)
+
+        def result = CheckDuplicateClassesEngine.searchForDuplicates(modulesByFile, null)
+
+        try {
+            def reportMap = CheckDuplicateClassesEngine.buildReport(classesByJar, result);
+
+            assertEquals(6, reportMap.size())
+
+            reportMap
+        } catch (Exception e) {
+            throw e
+        }
+    }
+
+    private Map<String, Set<String>> processArtifacts(Path libsPath, engine) {
         Collection<File> artifactsPath = Files.walk(libsPath).map {
             it.toFile()
         }.findAll {
             it.isFile()
         }.collect()
 
-        Map<String, Set<String>> filesByArtifact = artifactsPath.stream().flatMap { artifact ->
-            engine.processArtifact(artifact).stream().
-                    map { new FileToVersion(it, artifact.name) }
+        classesByJar = artifactsPath.stream().flatMap { jar ->
+            engine.processArtifact(jar).stream().
+                    map { new FileToVersion(it, jar.name) }
         }.collect(concurrentMapCollector())
 
-        filesByArtifact.entrySet().stream().flatMap { es ->
+        classesByJar.entrySet().stream().flatMap { es ->
             es.value.stream().map {
                 new FileToVersion(es.key, it)
             }
         }.collect(concurrentMapCollector())
+    }
+
+    static void main(String[] args) {
+        def test = new CheckDuplicateClassesEngineTest()
+        Map<String, String> reportMap = test.testReportGenerator()
+        def libsPath = test.testJarsPath()
+        def reportsPath = libsPath.resolve("..").resolve("..").resolve("..").resolve("..").resolve("build").resolve("reports")
+        CheckDuplicateClassesEngine.writeReportFiles(reportsPath, reportMap)
     }
 }

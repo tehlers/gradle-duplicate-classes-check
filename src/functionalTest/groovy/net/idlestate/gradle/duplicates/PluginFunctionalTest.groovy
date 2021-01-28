@@ -130,7 +130,7 @@ class PluginFunctionalTest {
 
         checkForExpectedLines(result.output)
 
-        assertFalse("Report directory should not be present", testProjectDir.root.toPath().resolve("report").toFile().exists())
+        assertFalse("Reports directory should not be present", testProjectDir.root.toPath().resolve("reports").toFile().exists())
     }
 
     @Test
@@ -188,6 +188,9 @@ class PluginFunctionalTest {
 
         println result.output
 
-        assertTrue("Report directory is not present", testProjectDir.root.toPath().resolve("build").resolve("report").toFile().exists())
+        def reportsPath = testProjectDir.root.toPath().resolve("build").resolve("reports")
+        assertTrue("Reports directory is not present", reportsPath.toFile().exists())
+        assertTrue("'duplicate classes' directory is not present", reportsPath.resolve("duplicate classes").toFile().exists())
+        assertTrue("index.html file is not present", reportsPath.resolve("duplicate classes").resolve("index.html").toFile().exists())
     }
 }

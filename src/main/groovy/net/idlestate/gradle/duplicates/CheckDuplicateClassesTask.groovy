@@ -37,7 +37,9 @@ class CheckDuplicateClassesTask extends DefaultTask implements VerificationTask 
 
     private boolean _generateReport = false;
 
-    private File reportDirectory;
+    private File reportDirectory
+
+    private Map<String, Set<String>> classesByArtifactMap
 
     CheckDuplicateClassesTask() {
     }
@@ -57,7 +59,7 @@ class CheckDuplicateClassesTask extends DefaultTask implements VerificationTask 
         }
 
         if (_generateReport) {
-            prepareReportDirectory()
+            prepareReportsDirectory()
         }
 
         Map<Configuration, Collection<List<String>>> configurationResult = configurationsToCheck.stream().filter { isConfigurationResolvable(it) }.
@@ -66,14 +68,14 @@ class CheckDuplicateClassesTask extends DefaultTask implements VerificationTask 
                     checkConfiguration(it, engine)
                 }))
 
-        if (configurationResult.isEmpty() || configurationResult.values().findAll({!it.isEmpty()}).isEmpty()) {
+        if (configurationResult.isEmpty() || configurationResult.values().findAll({ !it.isEmpty() }).isEmpty()) {
             return
         }
 
         processResult(configurationResult)
     }
 
-    private void prepareReportDirectory() {
+    private void prepareReportsDirectory() {
         if (reportDirectory != null) {
             return
         }
@@ -82,12 +84,12 @@ class CheckDuplicateClassesTask extends DefaultTask implements VerificationTask 
             project.buildDir.mkdir()
         }
 
-        def reportDir = project.buildDir.toPath().resolve("report").toFile()
+        def reportDir = project.buildDir.toPath().resolve("reports").toFile()
         if (!reportDir.exists()) {
             reportDir.mkdir()
         }
 
-        this.reportDirectory = reportDir.toPath().resolve("duplicate_classes").toFile()
+        this.reportDirectory = reportDir.toPath().resolve("duplicate classes").toFile()
         if (!this.reportDirectory.exists()) {
             this.reportDirectory.mkdir()
         }
@@ -104,8 +106,9 @@ class CheckDuplicateClassesTask extends DefaultTask implements VerificationTask 
             message.append(' (add generateReport = true to task parameters get detailed report)')
         }
 
-        result.entrySet().stream().forEach{
+        result.entrySet().forEach {
             message.append("\n\n${it.key.name}\n${buildMessageWithUniqueModules(it.value)}")
+            buildReportFiles(it.value)
         }
 
         if (_ignoreFailures) {
@@ -115,21 +118,29 @@ class CheckDuplicateClassesTask extends DefaultTask implements VerificationTask 
         }
     }
 
+    def buildReportFiles(Collection<List<String>> jarFiles) {
+        if (!_generateReport) {
+            return
+        }
+        Map<String, String> reportMap = buildReport(classesByArtifactMap, jarFiles)
+        writeReportFiles(this.reportDirectory.toPath(), reportMap)
+    }
+
     Collection<List<String>> checkConfiguration(final Configuration configuration, CheckDuplicateClassesEngine engine) {
         def artifactsStream = configuration.resolvedConfiguration.resolvedArtifacts.stream()
 
-        Map<String, Set<String>> filesByArtifact = artifactsStream.flatMap { artifact ->
+        classesByArtifactMap = artifactsStream.flatMap { artifact ->
             processArtifact(artifact, engine).stream().
                     map { new FileToVersion(it, artifact.moduleVersion.toString()) }
         }.collect(concurrentMapCollector())
 
-        Map<String, Set<String>> modulesByFile = filesByArtifact.entrySet().stream().flatMap { es ->
+        Map<String, Set<String>> jarsByClassMap = this.classesByArtifactMap.entrySet().stream().flatMap { es ->
             es.value.stream().map {
                 new FileToVersion(es.key, it)
             }
         }.collect(concurrentMapCollector())
 
-        return searchForDuplicates(modulesByFile, logger.isInfoEnabled() ? { logger.info(it) } : null)
+        return searchForDuplicates(jarsByClassMap, logger.isInfoEnabled() ? { logger.info(it) } : null)
     }
 
 
@@ -177,7 +188,6 @@ class CheckDuplicateClassesTask extends DefaultTask implements VerificationTask 
     }
 
     void setGenerateReport(boolean generateReport) {
-        println "setGenerateReport"
         this._generateReport = generateReport
     }
 
