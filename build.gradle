@@ -1,14 +1,38 @@
 plugins {
-    id 'com.github.hierynomus.license' version '0.14.0'
+    id 'com.github.hierynomus.license' version '0.15.0'
     id 'java-gradle-plugin'
     id 'maven-publish'
     id 'com.gradle.plugin-publish' version '0.9.9'
 }
 
+repositories {
+    jcenter()
+}
+
 apply plugin: 'groovy'
 
 group = 'net.idlestate'
-version = '1.0.2'
+version = '1.1.0-SNAPSHOT'
+
+def functionalTest = sourceSets.create("functionalTest")
+
+dependencies {
+    testImplementation 'junit:junit:4.13'
+    functionalTestImplementation 'junit:junit:4.13'
+}
+
+license {
+    exclude('**/*.jar')
+    exclude('**/*.html')
+}
+
+licenseTest {
+    exclude('**/*.jar', '**/*.html')
+}
+
+test {
+    useJUnit()
+}
 
 gradlePlugin {
     plugins {
@@ -17,6 +41,20 @@ gradlePlugin {
             implementationClass = 'net.idlestate.gradle.duplicates.CheckDuplicateClassesPlugin'
         }
     }
+
+    testSourceSets(sourceSets.functionalTest)
+}
+
+def functionalTestTask = tasks.register("functionalTest", Test) {
+    description = 'Runs the functional tests.'
+    group = "verification"
+    testClassesDirs = functionalTest.output.classesDirs
+    classpath = functionalTest.runtimeClasspath
+    mustRunAfter(tasks.test)
+}
+
+check {
+    dependsOn(functionalTestTask)
 }
 
 pluginBundle {

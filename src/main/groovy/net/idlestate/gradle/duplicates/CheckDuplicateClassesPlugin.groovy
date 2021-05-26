@@ -1,5 +1,6 @@
 /*
- * Copyright 2018 Thorsten Ehlers
+ * Portions Copyright 2018 Thorsten Ehlers
+ * Portions Copyright 2021 Doychin Bondzhev
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
