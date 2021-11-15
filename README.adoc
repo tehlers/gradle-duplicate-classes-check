@@ -13,7 +13,7 @@ You can either use the new plugin mechanism introduced with Gradle 2.1
 [source,groovy]
 --------------------------------------------------------------------
 plugins {
-  id 'net.idlestate.gradle-duplicate-classes-check' version '1.0.2'
+  id 'net.idlestate.gradle-duplicate-classes-check' version '1.1.0'
 }
 --------------------------------------------------------------------
 
@@ -30,7 +30,7 @@ buildscript {
   }
 
   dependencies {
-    classpath 'gradle.plugin.net.idlestate:gradle-duplicate-classes-check:1.0.2'
+    classpath 'gradle.plugin.net.idlestate:gradle-duplicate-classes-check:1.1.0'
   }
 }
 
@@ -50,7 +50,7 @@ By default, this task fails the build if any duplicate files are found in the de
 [source,groovy]
 --------------------------------------------------------------------
 plugins {
-  id 'net.idlestate.gradle-duplicate-classes-check' version '1.0.2'
+  id 'net.idlestate.gradle-duplicate-classes-check' version '1.1.0'
 }
 
 checkForDuplicateClasses {
@@ -83,7 +83,7 @@ You can also use `includes` and `excludes` to filter for specific *JAR* files.
 [source,groovy]
 --------------------------------------------------------------------
 plugins {
-  id 'net.idlestate.gradle-duplicate-classes-check' version '1.0.2'
+  id 'net.idlestate.gradle-duplicate-classes-check' version '1.1.0'
 }
 
 checkForDuplicateClasses {
@@ -107,7 +107,7 @@ to `checkForDuplicateClasses` task. This will guarantee that task will execute a
 [source,groovy]
 --------------------------------------------------------------------
 plugins {
-  id 'net.idlestate.gradle-duplicate-classes-check' version '1.0.2'
+  id 'net.idlestate.gradle-duplicate-classes-check' version '1.1.0'
 }
 
 checkForDuplicateClasses {
