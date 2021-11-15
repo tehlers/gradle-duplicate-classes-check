@@ -1,5 +1,6 @@
 /*
- * Copyright 2018 Thorsten Ehlers
+ * Portions Copyright 2018 Thorsten Ehlers
+ * Portions Copyright 2021 Doychin Bondzhev
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,114 +19,151 @@ package net.idlestate.gradle.duplicates
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
 import org.gradle.api.artifacts.Configuration
-import org.gradle.api.logging.LogLevel
+import org.gradle.api.artifacts.ResolvedArtifact
+import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.TaskAction
 import org.gradle.api.tasks.VerificationTask
 
-import java.util.zip.ZipFile
+import java.util.stream.Collectors
+
+import static net.idlestate.gradle.duplicates.CheckDuplicateClassesEngine.*
 
 /**
  * Checks whether the artifacts of the configurations of the project contain the same classes.
  */
 class CheckDuplicateClassesTask extends DefaultTask implements VerificationTask {
+
     private boolean _ignoreFailures = false
+
+    private boolean _generateReport = false;
+
+    private File reportDirectory
+
+    private Map<String, Set<String>> classesByArtifactMap
+
+    CheckDuplicateClassesTask() {
+    }
+
+    private List<Configuration> configurationsToCheck = [] as List<Configuration>
+
+    private List<String> excludes = [] as List<String>
+
+    private List<String> includes = [] as List<String>
 
     @TaskAction
     void checkForDuplicateClasses() {
-        final StringBuilder result = new StringBuilder()
+        def engine = new CheckDuplicateClassesEngine(excludes, includes)
 
-        project.configurations.each { configuration ->
-            if ( isConfigurationResolvable( configuration ) ) {
-                logger.info( "Checking configuration '${configuration.name}'" )
-                result.append( checkConfiguration( configuration ) )
-            }
+        if (configurationsToCheck.isEmpty()) {
+            configurationsToCheck.addAll(project.configurations)
         }
 
-        if ( result ) {
-            final StringBuilder message = new StringBuilder( 'There are conflicting files in the modules of the following configurations' )
+        if (_generateReport) {
+            prepareReportsDirectory()
+        }
 
-            if ( project.gradle.startParameter.logLevel.compareTo( LogLevel.INFO ) > 0 ) {
-                message.append( ' (add --info for details)' )
-            }
+        Map<Configuration, Collection<List<String>>> configurationResult = configurationsToCheck.stream().filter { isConfigurationResolvable(it) }.
+                collect(Collectors.toMap({ it }, {
+                    logger.info("Checking configuration '${it.name}'")
+                    checkConfiguration(it, engine)
+                }))
 
-            message.append( ":${result.toString()}" )
+        if (configurationResult.isEmpty() || configurationResult.values().findAll({ !it.isEmpty() }).isEmpty()) {
+            return
+        }
 
-            if ( _ignoreFailures ) {
-                logger.warn( message.toString() )
-            } else {
-                throw new GradleException( message.toString() )
-            }
+        processResult(configurationResult)
+    }
+
+    private void prepareReportsDirectory() {
+        if (reportDirectory != null) {
+            return
+        }
+
+        if (!project.buildDir.exists()) {
+            project.buildDir.mkdir()
+        }
+
+        def reportDir = project.buildDir.toPath().resolve("reports").toFile()
+        if (!reportDir.exists()) {
+            reportDir.mkdir()
+        }
+
+        this.reportDirectory = reportDir.toPath().resolve("duplicate classes").toFile()
+        if (!this.reportDirectory.exists()) {
+            this.reportDirectory.mkdir()
         }
     }
 
-    String checkConfiguration( final Configuration configuration ) {
-        Map<String, Set> modulesByFile = [:].withDefault { key -> [] as Set }
+    private void processResult(Map<Configuration, Collection<List<String>>> result) {
+        final StringBuilder message = new StringBuilder('There are conflicting files in the modules of the following configurations')
 
-        configuration.resolvedConfiguration.resolvedArtifacts.each { artifact ->
-            logger.info( "    '${artifact.file.path}' of '${artifact.moduleVersion}'" )
+        if (!logger.isInfoEnabled()) {
+            message.append(' (add --info for details)')
+        }
 
-            new ZipFile( artifact.file ).entries().each { entry ->
-                if ( !entry.isDirectory() && !entry.name.startsWith( 'META-INF/' ) ) {
-                    final Set modules = modulesByFile.get( entry.name )
-                    modules.add( artifact.moduleVersion.toString() )
-                    modulesByFile.put( entry.name, modules )
-                }
+        if (!_generateReport) {
+            message.append(' (add generateReport = true to task parameters get detailed report)')
+        }
+
+        result.entrySet().forEach {
+            message.append("\n\n${it.key.name}\n${buildMessageWithUniqueModules(it.value)}")
+            buildReportFiles(it.value)
+        }
+
+        if (_ignoreFailures) {
+            logger.warn(message.toString())
+        } else {
+            throw new GradleException(message.toString())
+        }
+    }
+
+    def buildReportFiles(Collection<List<String>> jarFiles) {
+        if (!_generateReport) {
+            return
+        }
+        Map<String, String> reportMap = buildReport(classesByArtifactMap, jarFiles)
+        writeReportFiles(this.reportDirectory.toPath(), reportMap)
+    }
+
+    Collection<List<String>> checkConfiguration(final Configuration configuration, CheckDuplicateClassesEngine engine) {
+        def artifactsStream = configuration.resolvedConfiguration.resolvedArtifacts.stream()
+
+        classesByArtifactMap = artifactsStream.flatMap { artifact ->
+            processArtifact(artifact, engine).stream().
+                    map { new FileToVersion(it, artifact.moduleVersion.toString()) }
+        }.collect(concurrentMapCollector())
+
+        Map<String, Set<String>> jarsByClassMap = this.classesByArtifactMap.entrySet().stream().flatMap { es ->
+            es.value.stream().map {
+                new FileToVersion(es.key, it)
             }
-        }
+        }.collect(concurrentMapCollector())
 
-        Map duplicateFiles = modulesByFile.findAll { it.value.size() > 1 }
-        if ( duplicateFiles ) {
-            logger.info( buildMessageWithConflictingClasses( duplicateFiles ) )
-            return "\n\n${configuration.name}\n${buildMessageWithUniqueModules( duplicateFiles.values() )}"
-        }
-
-        return ''
+        return searchForDuplicates(jarsByClassMap, logger.isInfoEnabled() ? { logger.info(it) } : null)
     }
 
-    static String buildMessageWithConflictingClasses( final Map<String, Set> duplicateFiles ) {
-        Map<String, List<String>> conflictingClasses = [:].withDefault { key -> [] }
 
-        duplicateFiles.collectEntries( conflictingClasses ) { entry ->
-            String key = entry.getValue().join( ', ' )
-            List values = conflictingClasses.get( key )
-            values.add( entry.getKey() )
-
-            [ key, values ]
+    Collection<String> processArtifact(ResolvedArtifact artifact, CheckDuplicateClassesEngine engine) {
+        if (artifact.moduleVersion != null) {
+            logger.info("    '${artifact.file.path}' of '${artifact.moduleVersion}'")
+        } else {
+            logger.info("    '${artifact.file.path}'")
         }
 
-        final StringBuilder message = new StringBuilder()
-        conflictingClasses.each { entry ->
-            message.append( "\n    Found duplicate classes in ${entry.key}:\n        ${entry.value.join( '\n        ' )}" )
+        if (!artifact.file.exists()) {
+            throw new GradleException("File `$artifact.file.path` does not exist!!!")
         }
 
-        return message.toString()
-    }
-
-    static String buildMessageWithUniqueModules(final Collection conflictingModules ) {
-        List moduleMessages = []
-
-        conflictingModules.each { modules ->
-            String message = "    ${joinModules( modules )}"
-            if ( !moduleMessages.contains( message ) ) {
-                moduleMessages.add( message )
-            }
-        }
-
-        return moduleMessages.join( '\n' )
-    }
-
-    static String joinModules( final Set modules ) {
-        return modules.sort( { first, second ->
-            ( first <=> second )
-        } ).join( ', ' )
+        engine.processArtifact(artifact.file)
     }
 
     /**
      * Gradle 3.4 introduced the configuration 'apiElements' that isn't resolvable. So
      * we have to check before accessing it.
      */
-    static boolean isConfigurationResolvable( configuration ) {
-        if ( !configuration.metaClass.respondsTo( configuration, 'isCanBeResolved' ) ) {
+    static boolean isConfigurationResolvable(configuration) {
+        if (!configuration.metaClass.respondsTo(configuration, 'isCanBeResolved')) {
             // If the recently introduced method 'isCanBeResolved' is unavailable, we
             // assume (for now) that the configuration can be resolved.
             return true
@@ -135,12 +173,61 @@ class CheckDuplicateClassesTask extends DefaultTask implements VerificationTask 
     }
 
     @Override
-    void setIgnoreFailures( final boolean ignoreFailures ) {
+    void setIgnoreFailures(final boolean ignoreFailures) {
         _ignoreFailures = ignoreFailures
     }
 
     @Override
     boolean getIgnoreFailures() {
         return _ignoreFailures
+    }
+
+    @Input
+    boolean getGenerateReport() {
+        return _generateReport
+    }
+
+    void setGenerateReport(boolean generateReport) {
+        this._generateReport = generateReport
+    }
+
+    CheckDuplicateClassesTask excludes(Iterable<String> excludes) {
+        this.excludes.addAll(excludes)
+        this
+    }
+
+    CheckDuplicateClassesTask includes(String... includes) {
+        this.includes.addAll(includes.collect())
+        this
+    }
+
+    CheckDuplicateClassesTask includes(Iterable<String> includes) {
+        this.includes.addAll(includes)
+        this
+    }
+
+    CheckDuplicateClassesTask excludes(String... excludes) {
+        this.excludes.addAll(excludes.collect())
+        this
+    }
+
+    CheckDuplicateClassesTask configurationsToCheck(Configuration... configurations) {
+        this.configurationsToCheck.addAll(configurations.collect())
+        this
+    }
+
+    CheckDuplicateClassesTask configurationsToCheck(Iterable<Configuration> configurations) {
+        this.configurationsToCheck.addAll(configurations.collect())
+        this
+    }
+
+    CheckDuplicateClassesTask configurationsToCheck(Configuration configuration) {
+        this.configurationsToCheck.add(configuration)
+        this
+    }
+
+    CheckDuplicateClassesTask reportDirectory(File reportDirectory) {
+        this.reportDirectory = reportDirectory
+        this
     }
 }
