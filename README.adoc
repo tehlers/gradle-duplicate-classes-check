@@ -71,6 +71,8 @@ By default, all dependencies are included in the comparison and the following fi
 * `*.txt`
 * `*.doc`
 * `README.*`
+* `LICENSE`
+* `NOTICE`
 
 To add more filters to the list you can use `excludes()`. It takes one or more regular expressions as parameter that is used to match against file name.
 
@@ -79,9 +81,13 @@ You can also specify explicitly which files to be compared with `includes()`. It
 
 You can also use `includes` and `excludes` to filter for specific *JAR* files.
 
+You can also use `excludeModules` or `excludeModule` to exclude a module based on its identifier. The former method expects a `ModuleIdentifier` and the latter is a convenience method that allows the module identifier to be specified as a string.
+
 .build.gradle
 [source,groovy]
 --------------------------------------------------------------------
+import org.gradle.api.internal.artifacts.DefaultModuleIdentifier
+
 plugins {
   id 'net.idlestate.gradle-duplicate-classes-check' version '1.1.0'
 }
@@ -95,6 +101,10 @@ checkForDuplicateClasses {
 
     // Will check for presence only for class files that has OnlyThese in their name
     includes('(OnlyThese).*(.class)^')
+
+    // Exclude modules with the different variants
+    excludeModules([DefaultModuleIdentifier.newId('group', 'name')])
+    excludeModule('group:name')
 }
 --------------------------------------------------------------------
 
