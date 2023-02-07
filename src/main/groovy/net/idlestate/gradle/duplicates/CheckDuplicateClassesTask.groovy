@@ -19,6 +19,7 @@ package net.idlestate.gradle.duplicates
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
 import org.gradle.api.artifacts.Configuration
+import org.gradle.api.artifacts.ModuleIdentifier
 import org.gradle.api.artifacts.ResolvedArtifact
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.TaskAction
@@ -48,11 +49,13 @@ class CheckDuplicateClassesTask extends DefaultTask implements VerificationTask 
 
     private List<String> excludes = [] as List<String>
 
+    private List<ModuleIdentifier> excludeModules = [] as List<ModuleIdentifier>
+
     private List<String> includes = [] as List<String>
 
     @TaskAction
     void checkForDuplicateClasses() {
-        def engine = new CheckDuplicateClassesEngine(excludes, includes)
+        def engine = new CheckDuplicateClassesEngine(excludes, excludeModules, includes)
 
         if (configurationsToCheck.isEmpty()) {
             configurationsToCheck.addAll(project.configurations)
@@ -129,33 +132,36 @@ class CheckDuplicateClassesTask extends DefaultTask implements VerificationTask 
     Collection<List<String>> checkConfiguration(final Configuration configuration, CheckDuplicateClassesEngine engine) {
         def artifactsStream = configuration.resolvedConfiguration.resolvedArtifacts.stream()
 
-        classesByArtifactMap = artifactsStream.flatMap { artifact ->
-            processArtifact(artifact, engine).stream().
-                    map { new FileToVersion(it, artifact.moduleVersion.toString()) }
-        }.collect(concurrentMapCollector())
+        Map<String, List<FileToVersion>> duplicateClasses = artifactsStream.
+                flatMap { processArtifact(it, engine).stream() }.
+                collect(Collectors.groupingBy{it.file})
 
-        Map<String, Set<String>> jarsByClassMap = this.classesByArtifactMap.entrySet().stream().flatMap { es ->
-            es.value.stream().map {
-                new FileToVersion(es.key, it)
-            }
-        }.collect(concurrentMapCollector())
+        duplicateClasses = duplicateClasses.entrySet().stream().
+                filter { it.value.size() > 1 }.
+                filter { a -> a.value.stream().anyMatch { b -> b.crc != a.value.get(0).crc }}.
+                collect(Collectors.toMap({it.key},{it.value}))
+
+        classesByArtifactMap = duplicateClasses.
+                values().
+                stream().
+                flatMap { it.stream() }.
+                collect(Collectors.groupingBy({ it.version }, Collectors.mapping({ it.file }, Collectors.toSet())))
+
+        Map<String, Set<String>> jarsByClassMap = duplicateClasses.entrySet().stream().collect(
+                Collectors.toMap({it.key}, {it.value.stream().map({it.version}).collect(Collectors.toSet())}))
 
         return searchForDuplicates(jarsByClassMap, logger.isInfoEnabled() ? { logger.info(it) } : null)
     }
 
 
-    Collection<String> processArtifact(ResolvedArtifact artifact, CheckDuplicateClassesEngine engine) {
+    List<FileToVersion> processArtifact(ResolvedArtifact artifact, CheckDuplicateClassesEngine engine) {
         if (artifact.moduleVersion != null) {
             logger.info("    '${artifact.file.path}' of '${artifact.moduleVersion}'")
         } else {
             logger.info("    '${artifact.file.path}'")
         }
 
-        if (!artifact.file.exists()) {
-            throw new GradleException("File `$artifact.file.path` does not exist!!!")
-        }
-
-        engine.processArtifact(artifact.file)
+        engine.processArtifact(artifact)
     }
 
     /**
@@ -208,6 +214,11 @@ class CheckDuplicateClassesTask extends DefaultTask implements VerificationTask 
 
     CheckDuplicateClassesTask excludes(String... excludes) {
         this.excludes.addAll(excludes.collect())
+        this
+    }
+
+    CheckDuplicateClassesTask excludeModules(Iterable<ModuleIdentifier> excludeModules) {
+        this.excludeModules.addAll(excludeModules)
         this
     }
 
