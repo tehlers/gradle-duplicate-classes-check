@@ -21,6 +21,7 @@ import org.gradle.api.GradleException
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.artifacts.ModuleIdentifier
 import org.gradle.api.artifacts.ResolvedArtifact
+import org.gradle.api.internal.artifacts.DefaultModuleIdentifier
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.TaskAction
 import org.gradle.api.tasks.VerificationTask
@@ -214,6 +215,16 @@ class CheckDuplicateClassesTask extends DefaultTask implements VerificationTask 
 
     CheckDuplicateClassesTask excludes(String... excludes) {
         this.excludes.addAll(excludes.collect())
+        this
+    }
+
+    CheckDuplicateClassesTask excludeModule(String excludeModule) {
+        String[] splitted = excludeModule.split(':')
+        if (splitted.size() != 2) {
+            throw new GradleException('Specify module identifier as "group:name" got "' + excludeModule + '"')
+        }
+
+        this.excludeModules.add(DefaultModuleIdentifier.newId(splitted[0], splitted[1]))
         this
     }
 
