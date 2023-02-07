@@ -13,7 +13,7 @@ You can either use the new plugin mechanism introduced with Gradle 2.1
 [source,groovy]
 --------------------------------------------------------------------
 plugins {
-  id 'net.idlestate.gradle-duplicate-classes-check' version '1.1.0'
+  id 'net.idlestate.gradle-duplicate-classes-check' version '1.2.0'
 }
 --------------------------------------------------------------------
 
@@ -30,7 +30,7 @@ buildscript {
   }
 
   dependencies {
-    classpath 'gradle.plugin.net.idlestate:gradle-duplicate-classes-check:1.1.0'
+    classpath 'gradle.plugin.net.idlestate:gradle-duplicate-classes-check:1.2.0'
   }
 }
 
@@ -50,7 +50,7 @@ By default, this task fails the build if any duplicate files are found in the de
 [source,groovy]
 --------------------------------------------------------------------
 plugins {
-  id 'net.idlestate.gradle-duplicate-classes-check' version '1.1.0'
+  id 'net.idlestate.gradle-duplicate-classes-check' version '1.2.0'
 }
 
 checkForDuplicateClasses {
@@ -89,7 +89,7 @@ You can also use `excludeModules` or `excludeModule` to exclude a module based o
 import org.gradle.api.internal.artifacts.DefaultModuleIdentifier
 
 plugins {
-  id 'net.idlestate.gradle-duplicate-classes-check' version '1.1.0'
+  id 'net.idlestate.gradle-duplicate-classes-check' version '1.2.0'
 }
 
 checkForDuplicateClasses {
@@ -117,7 +117,7 @@ to `checkForDuplicateClasses` task. This will guarantee that task will execute a
 [source,groovy]
 --------------------------------------------------------------------
 plugins {
-  id 'net.idlestate.gradle-duplicate-classes-check' version '1.1.0'
+  id 'net.idlestate.gradle-duplicate-classes-check' version '1.2.0'
 }
 
 checkForDuplicateClasses {
