@@ -18,17 +18,18 @@
 package net.idlestate.gradle.duplicates
 
 class FileToVersion {
-        String file
+    private String file
+    private long crc
+    private String version
 
-        String version
-
-        FileToVersion(String file, String version) {
-            this.file = file
-            this.version = version
-        }
+    FileToVersion(String file, long crc, String version) {
+        this.file = file
+        this.crc = crc
+        this.version = version
+    }
 
     @Override
     String toString() {
-        return "file: ${file} version: ${version}"
+        return "file: ${file} crc: ${crc} version: ${version}"
     }
 }

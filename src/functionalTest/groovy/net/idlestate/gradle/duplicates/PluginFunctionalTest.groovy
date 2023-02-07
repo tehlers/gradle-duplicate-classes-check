@@ -37,13 +37,11 @@ class PluginFunctionalTest {
 
     def expectedLines = [
             "com.fasterxml.woodstox:woodstox-core:5.1.0, org.codehaus.woodstox:woodstox-core-asl:4.2.0",
-            "org.apache.cassandra:cassandra-all:1.2.11, org.apache.cassandra:cassandra-thrift:1.2.11",
             "com.sun.xml.bind:jaxb-core:2.3.0, org.glassfish.jaxb:jaxb-runtime:2.3.2",
             "com.sun.xml.bind:jaxb-impl:2.3.0, org.glassfish.jaxb:jaxb-runtime:2.3.2",
             "jakarta.xml.bind:jakarta.xml.bind-api:2.3.2, javax.xml.bind:jaxb-api:2.3.0",
             "com.sun.istack:istack-commons-runtime:3.0.8, com.sun.xml.bind:jaxb-core:2.3.0",
             "com.sun.xml.bind:jaxb-core:2.3.0, org.glassfish.jaxb:txw2:2.3.2",
-            "com.sun.istack:istack-commons-runtime:3.0.8, com.sun.xml.bind:jaxb-xjc:2.3.1",
             "org.apache.logging.log4j:log4j-slf4j-impl:2.11.2, org.slf4j:slf4j-log4j12:1.7.21",
             "jakarta.jws:jakarta.jws-api:1.1.1, org.apache.geronimo.specs:geronimo-ws-metadata_2.0_spec:1.1.2",
             "jakarta.persistence:jakarta.persistence-api:2.2.3, org.hibernate.javax.persistence:hibernate-jpa-2.1-api:1.0.0.Final",
@@ -160,7 +158,7 @@ class PluginFunctionalTest {
 
     private void checkForExpectedLines(def message) {
         for (def expected : expectedLines) {
-            Assert.assertTrue(message.contains(expected))
+            Assert.assertTrue("Doesn't contain " + expected, message.contains(expected))
         }
     }
 

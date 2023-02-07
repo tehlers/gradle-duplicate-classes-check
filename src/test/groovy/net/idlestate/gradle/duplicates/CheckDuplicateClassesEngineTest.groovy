@@ -40,7 +40,7 @@ class CheckDuplicateClassesEngineTest extends GroovyTestCase {
 
     @Test
     void testSearchForDuplicates() {
-        def engine = new CheckDuplicateClassesEngine([] as List, [] as List)
+        def engine = new CheckDuplicateClassesEngine([] as List, [] as List, [] as List)
 
         Path libsPath = testJarsPath()
 
@@ -74,7 +74,7 @@ class CheckDuplicateClassesEngineTest extends GroovyTestCase {
 
     @Test
     void testExcludeJarFiles() {
-        def engine = new CheckDuplicateClassesEngine(['^.*(jakarta).*(.jar)$'], [] as List)
+        def engine = new CheckDuplicateClassesEngine(['^.*(jakarta).*(.jar)$'], [] as List, [] as List)
         Path libsPath = testJarsPath()
 
         Map<String, Set> modulesByFile = processArtifacts(libsPath, engine)
@@ -91,7 +91,7 @@ class CheckDuplicateClassesEngineTest extends GroovyTestCase {
 
     @Test
     def testReportGenerator() {
-        def engine = new CheckDuplicateClassesEngine([] as List, [] as List)
+        def engine = new CheckDuplicateClassesEngine([] as List, [] as List, [] as List)
 
         Path libsPath = testJarsPath()
 
@@ -119,13 +119,12 @@ class CheckDuplicateClassesEngineTest extends GroovyTestCase {
         }.collect()
 
         classesByJar = artifactsPath.stream().flatMap { jar ->
-            engine.processArtifact(jar).stream().
-                    map { new FileToVersion(it, jar.name) }
+            engine.processArtifact(jar, jar.name).stream()
         }.collect(concurrentMapCollector())
 
         classesByJar.entrySet().stream().flatMap { es ->
             es.value.stream().map {
-                new FileToVersion(es.key, it)
+                new FileToVersion(es.key, 0, it)
             }
         }.collect(concurrentMapCollector())
     }

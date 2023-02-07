@@ -16,6 +16,9 @@
  */
 package net.idlestate.gradle.duplicates
 
+import org.gradle.api.GradleException
+import org.gradle.api.artifacts.ModuleIdentifier
+import org.gradle.api.artifacts.ResolvedArtifact
 import java.nio.file.Path
 import java.util.function.Consumer
 import java.util.regex.Pattern
@@ -32,20 +35,35 @@ class CheckDuplicateClassesEngine {
                     '^.*(.htm)$',
                     '^.*(.txt)$',
                     '^.*(.doc)$',
-                    '^(README).*')
+                    '^(README).*',
+                    '^(LICENSE)',
+                    '^(NOTICE)')
 
     private Pattern excludePattern
 
     private Pattern includePattern
 
-    CheckDuplicateClassesEngine(List<String> excludes, List<String> includes) {
+    private List<ModuleIdentifier> excludeModules
+
+    CheckDuplicateClassesEngine(List<String> excludes, List<ModuleIdentifier> excludeModules, List<String> includes) {
         excludes.addAll(defaultExclude)
 
         excludePattern = ~excludes.join('|')
         includePattern = includes.isEmpty() ? ~'.*' : ~includes.join('|')
+        this.excludeModules = excludeModules
     }
 
-    static boolean isValidEntry(final entry, final excludePattern, final includePattern) {
+    boolean isModuleExcluded(ResolvedArtifact artifact) {
+        if (artifact.moduleVersion != null) {
+            ModuleIdentifier identifier = artifact.moduleVersion.id.module
+            return excludeModules.stream().anyMatch {
+                it.name.equals(identifier.name) && it.group.equals(identifier.group)
+            }
+        }
+        return false;
+    }
+
+    boolean isValidEntry(final entry) {
         if (entry.isDirectory()) {
             return false
         }
@@ -93,13 +111,27 @@ class CheckDuplicateClassesEngine {
 
     }
 
-    Collection<String> processArtifact(File artifactFile) {
-        if (!isValidEntry(artifactFile, excludePattern, includePattern)) {
-            return Collections.emptySet()
+    Collection<FileToVersion> processArtifact(ResolvedArtifact artifact) {
+        if (isModuleExcluded(artifact)) {
+            return Collections.emptyList()
         }
 
-        new ZipFile(artifactFile).entries().findAll { isValidEntry(it, excludePattern, includePattern) }.
-                collect { it.name }
+        processArtifact(artifact.file, artifact.moduleVersion.toString())
+    }
+
+    Collection<FileToVersion> processArtifact(File artifactFile, String version) {
+        if (!isValidEntry(artifactFile)) {
+            return Collections.emptyList()
+        }
+
+        if (!artifactFile.exists()) {
+            throw new GradleException("File `$artifactFile.path` does not exist!!!")
+        }
+
+        new ZipFile(artifactFile).stream().
+                filter({ isValidEntry(it) }).
+                map({ new FileToVersion(it.name, it.crc, version) }).
+                collect(Collectors.toList())
     }
 
     static String buildMessageWithConflictingClasses(final Map<String, Set> duplicateFiles) {
