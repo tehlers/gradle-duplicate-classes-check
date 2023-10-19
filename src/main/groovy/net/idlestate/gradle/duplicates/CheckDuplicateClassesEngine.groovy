@@ -162,6 +162,7 @@ class CheckDuplicateClassesEngine {
                 moduleMessages.add(message)
             }
         }
+        moduleMessages.sort()
 
         return moduleMessages.join('\n')
     }
