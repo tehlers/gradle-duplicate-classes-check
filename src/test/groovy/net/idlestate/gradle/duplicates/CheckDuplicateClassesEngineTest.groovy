@@ -68,9 +68,10 @@ class CheckDuplicateClassesEngineTest extends GroovyTestCase {
             "\n" +
             "test\n" +
             "    axiom-dom.jar, axiom-impl.jar\n" +
-            "    javax.transaction-api-1.3.jar, jboss-transaction-api_1.2_spec-1.0.1.Final.jar\n" +
+            "    geronimo-jta_1.1_spec-1.1.1.jar, javax.transaction-api-1.3.jar, jboss-transaction-api_1.2_spec-1.0.1.Final.jar\n" +
             "    geronimo-jta_1.1_spec-1.1.1.jar, jboss-transaction-api_1.2_spec-1.0.1.Final.jar\n" +
-            "    geronimo-jta_1.1_spec-1.1.1.jar, javax.transaction-api-1.3.jar, jboss-transaction-api_1.2_spec-1.0.1.Final.jar"
+            "    javax.transaction-api-1.3.jar, jboss-transaction-api_1.2_spec-1.0.1.Final.jar" 
+
 
     @Test
     void testExcludeJarFiles() {
