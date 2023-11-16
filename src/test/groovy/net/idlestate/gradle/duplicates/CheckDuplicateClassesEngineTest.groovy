@@ -31,10 +31,10 @@ class CheckDuplicateClassesEngineTest extends GroovyTestCase {
             "\n" +
             "test\n" +
             "    axiom-dom.jar, axiom-impl.jar\n" +
-            "    javax.transaction-api-1.3.jar, jboss-transaction-api_1.2_spec-1.0.1.Final.jar\n" +
-            "    jakarta.activation-api-1.2.1.jar, javax.activation-api-1.2.0.jar\n" +
+            "    geronimo-jta_1.1_spec-1.1.1.jar, javax.transaction-api-1.3.jar, jboss-transaction-api_1.2_spec-1.0.1.Final.jar\n"+
             "    geronimo-jta_1.1_spec-1.1.1.jar, jboss-transaction-api_1.2_spec-1.0.1.Final.jar\n" +
-            "    geronimo-jta_1.1_spec-1.1.1.jar, javax.transaction-api-1.3.jar, jboss-transaction-api_1.2_spec-1.0.1.Final.jar"
+            "    jakarta.activation-api-1.2.1.jar, javax.activation-api-1.2.0.jar\n" +
+            "    javax.transaction-api-1.3.jar, jboss-transaction-api_1.2_spec-1.0.1.Final.jar" 
 
     private Map<String, Set<String>> classesByJar
 
