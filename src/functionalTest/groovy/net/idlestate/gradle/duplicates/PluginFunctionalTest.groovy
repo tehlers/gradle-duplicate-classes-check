@@ -74,7 +74,7 @@ class PluginFunctionalTest {
          }
 
         dependencies {
-          compile(
+          implementation(
             "com.fasterxml.woodstox:woodstox-core:5.1.0",
             "org.codehaus.woodstox:woodstox-core-asl:4.2.0",
             "org.apache.cassandra:cassandra-all:1.2.11",
@@ -114,7 +114,7 @@ class PluginFunctionalTest {
         checkForDuplicateClasses {
             excludes('^.*(axiom-).*(.jar)\$', '^.*(RSSecrets).*(.jar)\$')
 
-            configurationsToCheck(configurations.compile)
+            configurationsToCheck(configurations.implementation)
 
             ignoreFailures = true
         }
@@ -138,7 +138,7 @@ class PluginFunctionalTest {
         checkForDuplicateClasses {
             excludes('^.*(axiom-).*(.jar)\$', '^.*(RSSecrets).*(.jar)\$')
 
-            configurationsToCheck(configurations.compile)
+            configurationsToCheck(configurations.implementation)
 
             ignoreFailures = false
         }
@@ -169,7 +169,7 @@ class PluginFunctionalTest {
         checkForDuplicateClasses {
             excludes('^.*(axiom-).*(.jar)\$', '^.*(RSSecrets).*(.jar)\$')
 
-            configurationsToCheck(configurations.compile)
+            configurationsToCheck(configurations.implementation)
 
             ignoreFailures = true
             generateReport = true
