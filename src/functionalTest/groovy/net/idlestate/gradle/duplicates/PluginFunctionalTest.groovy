@@ -114,7 +114,7 @@ class PluginFunctionalTest {
         checkForDuplicateClasses {
             excludes('^.*(axiom-).*(.jar)\$', '^.*(RSSecrets).*(.jar)\$')
 
-            configurationsToCheck(configurations.implementation)
+            configurationsToCheck(configurations.compileClasspath)
 
             ignoreFailures = true
         }
@@ -138,7 +138,7 @@ class PluginFunctionalTest {
         checkForDuplicateClasses {
             excludes('^.*(axiom-).*(.jar)\$', '^.*(RSSecrets).*(.jar)\$')
 
-            configurationsToCheck(configurations.implementation)
+            configurationsToCheck(configurations.compileClasspath)
 
             ignoreFailures = false
         }
@@ -169,7 +169,7 @@ class PluginFunctionalTest {
         checkForDuplicateClasses {
             excludes('^.*(axiom-).*(.jar)\$', '^.*(RSSecrets).*(.jar)\$')
 
-            configurationsToCheck(configurations.implementation)
+            configurationsToCheck(configurations.compileClasspath)
 
             ignoreFailures = true
             generateReport = true
