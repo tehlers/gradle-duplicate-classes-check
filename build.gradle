@@ -6,7 +6,7 @@ plugins {
 }
 
 repositories {
-    jcenter()
+    mavenCentral()
 }
 
 apply plugin: 'groovy'
@@ -54,7 +54,7 @@ def functionalTestTask = tasks.register("functionalTest", Test) {
 }
 
 check {
-    dependsOn(functionalTestTask)
+    dependsOn functionalTestTask
 }
 
 pluginBundle {

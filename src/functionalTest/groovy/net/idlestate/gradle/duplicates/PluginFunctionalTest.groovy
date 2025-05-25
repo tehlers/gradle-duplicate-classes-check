@@ -101,7 +101,9 @@ class PluginFunctionalTest {
             "org.jboss.spec.javax.transaction:jboss-transaction-api_1.2_spec:1.0.1.Final",
             "commons-logging:commons-logging:1.2",
             "org.slf4j:jcl-over-slf4j:1.7.26",
-            "org.springframework:spring-jcl:5.2.8.RELEASE"
+            "org.springframework:spring-jcl:5.2.8.RELEASE",
+            // Non-zip dependency
+            "org.graalvm.polyglot:llvm-community:24.2.1@pom"
           )
         }
         """
@@ -122,7 +124,7 @@ class PluginFunctionalTest {
 
         def result = GradleRunner.create()
                 .withProjectDir(testProjectDir.root)
-                .withArguments('checkForDuplicateClasses')
+                .withArguments('check')
                 .withPluginClasspath()
                 .build()
 
@@ -147,7 +149,7 @@ class PluginFunctionalTest {
         try {
             GradleRunner.create()
                     .withProjectDir(testProjectDir.root)
-                    .withArguments('checkForDuplicateClasses')
+                    .withArguments('check')
                     .withPluginClasspath()
                     .build()
             fail()
@@ -178,7 +180,7 @@ class PluginFunctionalTest {
 
         def result = GradleRunner.create()
                 .withProjectDir(testProjectDir.root)
-                .withArguments('checkForDuplicateClasses')
+                .withArguments('check')
                 .withPluginClasspath()
                 .build()
 

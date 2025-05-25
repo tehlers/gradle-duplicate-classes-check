@@ -66,11 +66,12 @@ class CheckDuplicateClassesTask extends DefaultTask implements VerificationTask 
             prepareReportsDirectory()
         }
 
-        Map<Configuration, Collection<List<String>>> configurationResult = configurationsToCheck.stream().filter { isConfigurationResolvable(it) }.
-                collect(Collectors.toMap({ it }, {
-                    logger.info("Checking configuration '${it.name}'")
-                    checkConfiguration(it, engine)
-                }))
+        Map<Configuration, Collection<List<String>>> configurationResult =
+                configurationsToCheck.stream().filter { isConfigurationResolvable(it) }.
+                        collect(Collectors.toMap({ it }, {
+                            logger.info("Checking configuration '${it.name}'")
+                            checkConfiguration(it as Configuration, engine)
+                        }))
 
         if (configurationResult.isEmpty() || configurationResult.values().findAll({ !it.isEmpty() }).isEmpty()) {
             return
@@ -84,11 +85,12 @@ class CheckDuplicateClassesTask extends DefaultTask implements VerificationTask 
             return
         }
 
-        if (!project.buildDir.exists()) {
-            project.buildDir.mkdir()
+        def buildDir = project.layout.getBuildDirectory().asFile
+        if (!buildDir.filter { it.exists() }.isPresent()) {
+            buildDir.get().mkdir()
         }
 
-        def reportDir = project.buildDir.toPath().resolve("reports").toFile()
+        def reportDir = buildDir.get().toPath().resolve("reports").toFile()
         if (!reportDir.exists()) {
             reportDir.mkdir()
         }
@@ -135,12 +137,12 @@ class CheckDuplicateClassesTask extends DefaultTask implements VerificationTask 
 
         Map<String, List<FileToVersion>> duplicateClasses = artifactsStream.
                 flatMap { processArtifact(it, engine).stream() }.
-                collect(Collectors.groupingBy{it.file})
+                collect(Collectors.groupingBy { it.file })
 
         duplicateClasses = duplicateClasses.entrySet().stream().
                 filter { it.value.size() > 1 }.
-                filter { a -> a.value.stream().anyMatch { b -> b.crc != a.value.get(0).crc }}.
-                collect(Collectors.toMap({it.key},{it.value}))
+                filter { a -> a.value.stream().anyMatch { b -> b.crc != a.value.get(0).crc } }.
+                collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue))
 
         classesByArtifactMap = duplicateClasses.
                 values().
@@ -149,7 +151,7 @@ class CheckDuplicateClassesTask extends DefaultTask implements VerificationTask 
                 collect(Collectors.groupingBy({ it.version }, Collectors.mapping({ it.file }, Collectors.toSet())))
 
         Map<String, Set<String>> jarsByClassMap = duplicateClasses.entrySet().stream().collect(
-                Collectors.toMap({it.key}, {it.value.stream().map({it.version}).collect(Collectors.toSet())}))
+                Collectors.toMap(Map.Entry::getKey, { it.value.stream().map({ it.version }).collect(Collectors.toSet()) }))
 
         return searchForDuplicates(jarsByClassMap, logger.isInfoEnabled() ? { logger.info(it) } : null)
     }
@@ -169,7 +171,7 @@ class CheckDuplicateClassesTask extends DefaultTask implements VerificationTask 
      * Gradle 3.4 introduced the configuration 'apiElements' that isn't resolvable. So
      * we have to check before accessing it.
      */
-    static boolean isConfigurationResolvable(configuration) {
+    static boolean isConfigurationResolvable(Configuration configuration) {
         if (!configuration.metaClass.respondsTo(configuration, 'isCanBeResolved')) {
             // If the recently introduced method 'isCanBeResolved' is unavailable, we
             // assume (for now) that the configuration can be resolved.
@@ -219,12 +221,12 @@ class CheckDuplicateClassesTask extends DefaultTask implements VerificationTask 
     }
 
     CheckDuplicateClassesTask excludeModule(String excludeModule) {
-        String[] splitted = excludeModule.split(':')
-        if (splitted.size() != 2) {
+        String[] split = excludeModule.split(':')
+        if (split.size() != 2) {
             throw new GradleException('Specify module identifier as "group:name" got "' + excludeModule + '"')
         }
 
-        this.excludeModules.add(DefaultModuleIdentifier.newId(splitted[0], splitted[1]))
+        this.excludeModules.add(DefaultModuleIdentifier.newId(split[0], split[1]))
         this
     }
 

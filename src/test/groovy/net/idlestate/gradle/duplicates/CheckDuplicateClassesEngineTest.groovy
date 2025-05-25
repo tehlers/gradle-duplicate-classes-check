@@ -42,7 +42,7 @@ class CheckDuplicateClassesEngineTest extends GroovyTestCase {
     void testSearchForDuplicates() {
         def engine = new CheckDuplicateClassesEngine([] as List, [] as List, [] as List)
 
-        Path libsPath = testJarsPath()
+        Path libsPath = jarsPath()
 
         Map<String, Set> modulesByFile =
                 processArtifacts(libsPath, engine)
@@ -58,7 +58,7 @@ class CheckDuplicateClassesEngineTest extends GroovyTestCase {
         }
     }
 
-    private Path testJarsPath() {
+    private Path jarsPath() {
         URL resourceUrl = getClass().getClassLoader().getResource("libs")
 
         Paths.get(resourceUrl.toURI())
@@ -76,7 +76,7 @@ class CheckDuplicateClassesEngineTest extends GroovyTestCase {
     @Test
     void testExcludeJarFiles() {
         def engine = new CheckDuplicateClassesEngine(['^.*(jakarta).*(.jar)$'], [] as List, [] as List)
-        Path libsPath = testJarsPath()
+        Path libsPath = jarsPath()
 
         Map<String, Set> modulesByFile = processArtifacts(libsPath, engine)
 
@@ -91,10 +91,10 @@ class CheckDuplicateClassesEngineTest extends GroovyTestCase {
     }
 
     @Test
-    def testReportGenerator() {
+    void testReportGenerator() {
         def engine = new CheckDuplicateClassesEngine([] as List, [] as List, [] as List)
 
-        Path libsPath = testJarsPath()
+        Path libsPath = jarsPath()
 
         Map<String, Set> modulesByFile =
                 processArtifacts(libsPath, engine)
@@ -133,7 +133,7 @@ class CheckDuplicateClassesEngineTest extends GroovyTestCase {
     static void main(String[] args) {
         def test = new CheckDuplicateClassesEngineTest()
         Map<String, String> reportMap = test.testReportGenerator()
-        def libsPath = test.testJarsPath()
+        def libsPath = test.jarsPath()
         def reportsPath = libsPath.resolve("..").resolve("..").resolve("..").resolve("..").resolve("build").resolve("reports")
         CheckDuplicateClassesEngine.writeReportFiles(reportsPath, reportMap)
     }

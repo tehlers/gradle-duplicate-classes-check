@@ -28,13 +28,13 @@ class CheckDuplicateClassesPlugin implements Plugin<Project> {
 
     @Override
     void apply(final Project project) {
-        final Task checkForDuplicateClasses = project.task(
-                'checkForDuplicateClasses',
-                type: CheckDuplicateClassesTask,
-                group: LifecycleBasePlugin.VERIFICATION_GROUP,
-                description: 'Checks whether there are modules that provide the same classes.'
-        )
+        def taskProvider = project.tasks.register('checkForDuplicateClasses', CheckDuplicateClassesTask) { task ->
+            group = LifecycleBasePlugin.VERIFICATION_GROUP
+            description = 'Checks whether there are modules that provide the same classes.'
+        }
 
-        project.getTasksByName( LifecycleBasePlugin.CHECK_TASK_NAME, false )*.dependsOn checkForDuplicateClasses
+        project.afterEvaluate {
+            project.getTasksByName(LifecycleBasePlugin.CHECK_TASK_NAME, false)*.dependsOn taskProvider
+        }
     }
 }

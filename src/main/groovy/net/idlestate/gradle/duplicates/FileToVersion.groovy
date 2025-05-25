@@ -18,9 +18,9 @@
 package net.idlestate.gradle.duplicates
 
 class FileToVersion {
-    private String file
-    private long crc
-    private String version
+    final String file
+    final long crc
+    final String version
 
     FileToVersion(String file, long crc, String version) {
         this.file = file

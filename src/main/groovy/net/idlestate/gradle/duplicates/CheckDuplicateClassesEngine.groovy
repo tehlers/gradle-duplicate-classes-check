@@ -16,9 +16,11 @@
  */
 package net.idlestate.gradle.duplicates
 
-import org.gradle.api.GradleException
+import org.gradle.api.Task
 import org.gradle.api.artifacts.ModuleIdentifier
 import org.gradle.api.artifacts.ResolvedArtifact
+import org.gradle.api.logging.Logging
+
 import java.nio.file.Path
 import java.util.function.Consumer
 import java.util.regex.Pattern
@@ -26,7 +28,11 @@ import java.util.stream.Collector
 import java.util.stream.Collectors
 import java.util.zip.ZipFile
 
+import org.gradle.api.logging.Logger;
+
 class CheckDuplicateClassesEngine {
+    private static final Logger logger = Logging.getLogger(Task.class);
+
     private static final List<String> defaultExclude =
             Arrays.asList('^(META-INF/).*',
                     '^(OSGI-INF/).*',
@@ -39,11 +45,11 @@ class CheckDuplicateClassesEngine {
                     '^(LICENSE)',
                     '^(NOTICE)')
 
-    private Pattern excludePattern
+    private final Pattern excludePattern
 
-    private Pattern includePattern
+    private final Pattern includePattern
 
-    private List<ModuleIdentifier> excludeModules
+    private final List<ModuleIdentifier> excludeModules
 
     CheckDuplicateClassesEngine(List<String> excludes, List<ModuleIdentifier> excludeModules, List<String> includes) {
         excludes.addAll(defaultExclude)
@@ -57,12 +63,18 @@ class CheckDuplicateClassesEngine {
         if (artifact.moduleVersion != null) {
             ModuleIdentifier identifier = artifact.moduleVersion.id.module
             return excludeModules.stream().anyMatch {
-                it.name.equals(identifier.name) && it.group.equals(identifier.group)
+                it.name == identifier.name && it.group == identifier.group
             }
         }
         return false;
     }
 
+    /**
+     * This method consumes both File and ZipEntry. It requires isDirectory method and name property
+     *
+     * @param entry
+     * @return true if the entry is a file and not in the excluded list
+     */
     boolean isValidEntry(final entry) {
         if (entry.isDirectory()) {
             return false
@@ -125,10 +137,19 @@ class CheckDuplicateClassesEngine {
         }
 
         if (!artifactFile.exists()) {
-            throw new GradleException("File `$artifactFile.path` does not exist!!!")
+            logger.warn("File `$artifactFile.path` does not exist!!!")
         }
 
-        new ZipFile(artifactFile).stream().
+        def zipFile
+
+        try {
+            zipFile = new ZipFile(artifactFile)
+        } catch (ignored) {
+            logger.warn("File $artifactFile.path is not a valid ZIP archive!")
+            return Collections.emptyList()
+        }
+
+        zipFile.stream().
                 filter({ isValidEntry(it) }).
                 map({ new FileToVersion(it.name, it.crc, version) }).
                 collect(Collectors.toList())
@@ -191,11 +212,7 @@ class CheckDuplicateClassesEngine {
             def tempFileName = "duplicate_classes" + it.hashCode() + ".html"
             indexHtml.append('<li>').append('<a href="').append(tempFileName).append('">').append(it.stream().collect(Collectors.joining(","))).append('</a></li><br/>\n')
             Collections.singletonMap(tempFileName, it).entrySet().stream()
-        }.collect(Collectors.toMap({
-            it.getKey()
-        }, {
-            it.getValue()
-        }))
+        }.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue))
 
         duplicateMap.keySet().forEach {
             result.put(it, generateDuplicateClassesReport(new ArrayList<String>(duplicateMap.get(it)), classesByArtifactMap))
