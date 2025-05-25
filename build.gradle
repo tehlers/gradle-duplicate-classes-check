@@ -2,7 +2,7 @@ plugins {
     id 'com.github.hierynomus.license' version '0.16.1'
     id 'java-gradle-plugin'
     id 'maven-publish'
-    id 'com.gradle.plugin-publish' version '0.17.0'
+    id 'com.gradle.plugin-publish' version '1.3.1'
 }
 
 repositories {
@@ -35,10 +35,16 @@ test {
 }
 
 gradlePlugin {
+    website = 'https://github.com/tehlers/gradle-duplicate-classes-check'
+    vcsUrl = 'https://github.com/tehlers/gradle-duplicate-classes-check.git'
+
     plugins {
         duplicateClassesCheck {
             id = 'net.idlestate.gradle-duplicate-classes-check'
             implementationClass = 'net.idlestate.gradle.duplicates.CheckDuplicateClassesPlugin'
+            displayName = 'Duplicate classes check'
+            description = 'A Gradle plugin that checks whether different artifacts in a configuration provide the same classes'
+            tags.set(['classpath', 'configuration', 'dependencies', 'duplicates'])
         }
     }
 
@@ -55,20 +61,6 @@ def functionalTestTask = tasks.register("functionalTest", Test) {
 
 check {
     dependsOn functionalTestTask
-}
-
-pluginBundle {
-    website = 'https://github.com/tehlers/gradle-duplicate-classes-check'
-    vcsUrl = 'https://github.com/tehlers/gradle-duplicate-classes-check.git'
-
-    plugins {
-        duplicateClassesCheck {
-            id = 'net.idlestate.gradle-duplicate-classes-check'
-            displayName = 'Duplicate classes check'
-            description = 'A Gradle plugin that checks whether different artifacts in a configuration provide the same classes'
-            tags = ['classpath', 'configuration', 'dependencies', 'duplicates']
-        }
-    }
 }
 
 task sourceJar( type: Jar ) {
